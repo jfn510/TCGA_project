@@ -1,0 +1,78 @@
+# capstone project analysis
+
+# load libraries
+library(dplyr)
+library(maftools)
+library(ggplot2)
+library(ggrepel)
+library(DESeq2)
+library(fgsea)
+library(BiocParallel)
+
+# enable parallel computing (not sure why we're doing this but sure)
+register(SerialParam())
+
+# Identify tumours with KANSL1 mutation -----------------------------------
+
+# read Whole Exome Sequencing maf
+wxs_maf <- read.maf('data/WXS.maf')
+
+# get summaries of all mutated genes
+gene_tots <- getGeneSummary(wxs_maf)
+gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$MutatedSamples
+gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$AlteredSamples
+# not sure what the differnce between the mutated and altered samples columns are
+# 24 patients had mutations in KANSL1
+
+# produce a lollipop plot showing where the mutations in KANSL1 are
+lollipopPlot(maf = wxs_maf, gene = 'KANSL1', AACol = "Protein_Change", cBioPortal = TRUE, 
+             pointSize = 4, labelPos = c("249", "373"), labPosSize = 2, 
+             titleSize = c(2, 1), showMutationRate = FALSE,
+             domainLabelSize = 2, showDomainLabel = FALSE,
+             axisTextSize = c(2,2), legendTxtSize = 1.5, )
+?lollipopPlot()
+
+# extract KANSL1 mutant patient IDs
+kansl1_muts <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id])
+kansl1_muts
+
+################################################################################
+
+# are the KANSL1 mutants more frequently in any one of the consensus classifiers?
+con_class <- read.table("data/mRNA_gc47-TPMs_ConsensusClassifier.tsv", 
+                        header = TRUE, sep = "\t")
+View(con_class)
+
+# add Patient ID column with 01A removed from each of the IDs
+con_class$Patient_ID <- substr(con_class$ID, 1, 12)
+
+################################################################################
+
+# DE analysis - KANSL1 mutants vs non-mutants -----------------------------
+
+# kansl1_muts is our object with KANSL mutant patient IDs
+# create object of KANSL1 wildtype patient IDs
+kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
+
+# create a sample info dataframe for differential expression
+sample_ids <- c(kansl1_muts, kansl1_wt)
+
+genotype <- c(rep("MUT", length(kansl1_muts)), 
+              rep("WT", length(kansl1_wt)))
+
+sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
+
+# load RNAseq count data, adapt column names (remove last four characters)
+counts <- read.table('data/mRNA_gc47-counts.tsv', check.names = FALSE,
+                      header = TRUE, row.names = 1, sep = '\t')
+
+colnames(counts) <- substr(colnames(counts), 1, nchar(colnames(counts)) - 4)
+
+# create DESeq2 object
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = sample_info,
+                              design = ~ genotype)
+
+# apparently row names of sample_info do not match col names of counts
+setdiff(rownames(sample_info), colnames(counts))
+setdiff(colnames(counts),rownames(sample_info) )

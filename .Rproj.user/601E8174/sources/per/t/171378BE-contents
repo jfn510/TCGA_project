@@ -1,0 +1,10 @@
+# capstone project analysis
+
+# load libraries
+library(dplyr)
+library(maftools)
+library(ggplot2)
+library(ggrepel)
+library(DESeq2)
+library(fgsea)
+library(BiocParallel)

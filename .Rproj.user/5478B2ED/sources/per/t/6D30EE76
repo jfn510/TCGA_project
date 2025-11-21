@@ -1,0 +1,26 @@
+{
+    "id": "6D30EE76",
+    "path": "H:/TCGA_project/analysis.R",
+    "project_path": "analysis.R",
+    "type": "r_source",
+    "hash": "2407232774",
+    "contents": "",
+    "dirty": false,
+    "created": 1761297346701.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "78,0",
+        "scrollLine": "51"
+    },
+    "folds": "38|80|47|0|\n48|80|49|0|\n",
+    "lastKnownWriteTime": 1761316113,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1761316112898,
+    "read_only": false,
+    "read_only_alternatives": []
+}
