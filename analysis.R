@@ -11,7 +11,7 @@ library(DESeq2)
 # library(fgsea) # couldn't be installed but ignoring this for now
 library(BiocParallel)
 
-# enable parallel computing (not sure why we're doing this but sure)
+# enable parallel computing
 register(SerialParam())
 
 # Identify tumours with KANSL1 mutation -----------------------------------
@@ -108,7 +108,7 @@ con_class$subtype_status <- NULL
 
 # DE analysis - KANSL1 mutants vs ALL non-mutants -----------------------------
 
-# kansl1_muts is our object with KANSL mutant patient IDs
+# kansl1_muts is our object with KANSL1 mutant patient IDs
 # create object of KANSL1 wildtype patient IDs
 kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
 kansl1_wt
@@ -190,6 +190,26 @@ dev.off()
 kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
 kansl1_wt
 
+# we need to exclude tumours who have mutations that might do the same thing as KANSL1 mutants
+# these includes KANSL2 and WRD5 mutants (other subcomplexes of the NSL complex)
+# as well as HAT1 and KDM1A
+
+# extract patient IDs for all these genes
+# using a for loop for ease of adding/removing genes later
+genes_to_extract <- c('KANSL2', 'WRD5', 'HAT1', 'KDM1A')
+IDs_to_remove <- c() # empty vector to store results
+for (gene in genes_to_extract) {
+  gene_muts <- unique(wxs_maf@data[Hugo_Symbol == gene, Patient_Id])
+  IDs_to_remove <- c(IDs_to_remove, gene_muts)
+}
+
+IDs_to_remove <- unique(IDs_to_remove) # remove duplicates
+IDs_to_remove
+
+# remove patient IDs who have mutations in these genes
+kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
+length(kansl1_wt) # fewer than earlier - a success
+
 # create object of 24 randomly selected KANSL1 wildtype patient IDs
 kansl1_wt <- sample(kansl1_wt, 24)
 
@@ -261,3 +281,4 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
   geom_text_repel(size=2, data=genes_to_label, aes(x=log2FoldChange, y=-log10(padj), label=symbol), max.overlaps = Inf)
 
 dev.off()
+
