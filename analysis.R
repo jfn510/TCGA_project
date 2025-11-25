@@ -5,6 +5,7 @@
 # load libraries
 library(dplyr)
 library(maftools)
+library(data.table)
 library(ggplot2)
 library(ggrepel)
 library(DESeq2)
@@ -47,6 +48,8 @@ con_class$Patient_ID <- substr(con_class$ID, 1, 12)
 # what are the classifiers for the KANSL1 mutants we extracted?
 con_class_kansl1 <- con_class[con_class$Patient_ID %in% kansl1_muts, ] |> 
   select('Patient_ID', 'consensusClass')
+
+# Create pie chart --------------------------------------------------------
 
 # create two pie charts for visual comparison of whether or not there is a difference
 # the proportion of classifiers in KANSL1 mutants and the entire cohort
@@ -195,15 +198,9 @@ kansl1_wt
 # as well as HAT1 and KDM1A
 
 # extract patient IDs for all these genes
-# using a for loop for ease of adding/removing genes later
 genes_to_extract <- c('KANSL2', 'WRD5', 'HAT1', 'KDM1A')
-IDs_to_remove <- c() # empty vector to store results
-for (gene in genes_to_extract) {
-  gene_muts <- unique(wxs_maf@data[Hugo_Symbol == gene, Patient_Id])
-  IDs_to_remove <- c(IDs_to_remove, gene_muts)
-}
 
-IDs_to_remove <- unique(IDs_to_remove) # remove duplicates
+IDs_to_remove <- unique(wxs_maf@data[Hugo_Symbol %in% genes_to_extract, Patient_Id])
 IDs_to_remove
 
 # remove patient IDs who have mutations in these genes
@@ -223,6 +220,8 @@ genotype
 
 sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
 
+# read in mRNA data from online source (AM's google drive)
+mRNA_counts <- fread(file = 'https://drive.google.com/file/d/1djprP7DAcEwdUqugIOyQgM_JaYFmtcyl/view?usp=drive_link')
 # load RNAseq count data, adapt column names (remove last four characters)
 counts <- read.table('data/mRNA_gc47-counts.tsv', check.names = FALSE,
                      header = TRUE, row.names = 1, sep = '\t')
