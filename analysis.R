@@ -6,6 +6,7 @@
 library(dplyr)
 library(maftools)
 library(data.table)
+library(googledrive)
 library(ggplot2)
 library(ggrepel)
 library(DESeq2)
@@ -14,6 +15,9 @@ library(BiocParallel)
 
 # enable parallel computing
 register(SerialParam())
+
+# log into google drive
+googledrive::drive_auth()
 
 # Identify tumours with KANSL1 mutation -----------------------------------
 
@@ -221,11 +225,19 @@ genotype
 sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
 
 # read in mRNA data from online source (AM's google drive)
-mRNA_counts <- fread(file = 'https://drive.google.com/file/d/1djprP7DAcEwdUqugIOyQgM_JaYFmtcyl/view?usp=drive_link')
-# load RNAseq count data, adapt column names (remove last four characters)
-counts <- read.table('data/mRNA_gc47-counts.tsv', check.names = FALSE,
+file_id <- '1djprP7DAcEwdUqugIOyQgM_JaYFmtcyl'
+mrna_temp <- tempfile(fileext = ".tsv")
+drive_download(as_id(file_id), path = mrna_temp, overwrite = TRUE)
+
+# load RNAseq count data
+counts <- read.table(mrna_temp, check.names = FALSE,
                      header = TRUE, row.names = 1, sep = '\t')
 
+# remove temporary file
+unlink(mrna_temp)
+rm(mrna_temp)
+
+# adapt column names (remove last four characters)
 colnames(counts) <- substr(colnames(counts), 1, nchar(colnames(counts)) - 4)
 
 # sanity check - make sure samples in counts are the same as the samples taken from mutation data
