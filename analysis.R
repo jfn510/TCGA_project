@@ -18,6 +18,7 @@ register(SerialParam())
 
 # log into google drive
 googledrive::drive_auth()
+# click 1
 
 # Identify tumours with KANSL1 mutation -----------------------------------
 
@@ -260,7 +261,7 @@ dds_results
 
 # change NA values to 0 and add a max adjusted p value
 dds_results$log2FoldChange[is.na(dds_results$log2FoldChange)] <- 0
-dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0
+dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
 
 # add labels for colouring a volcano plot
 dds_results$DEA <- "NO" 
@@ -274,19 +275,32 @@ dds_results$symbol <- rownames(dds_results)
 dds_results$pi <- dds_results$log2FoldChange * -log10(dds_results$padj)
 dds_results_pi_sorted <- dds_results[order(dds_results$pi),]
 
-png(file = 'plots/DEA_silly.png',
-    width = 10, height = 6, units = 'in', res = 1000)
+# create reduced dataframe of most significantly different genes, for labelling
+# using pi values means you prioritise most biologically significant
+top_genes <- c(head(dds_results_pi_sorted$symbol, 20), tail(dds_results_pi_sorted$symbol, 20))
+genes_to_label <- dds_results[dds_results$symbol %in% top_genes, ]
+
+# create volcano plot
+png(file = 'plots/DEA_KANSL1_wt24.png',
+    width = 8, height = 5, units = 'in', res = 1000)
+
 # create a labelled, coloured and annotated volcano plot
 ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
-  geom_point(aes(colour = DEA), show.legend = FALSE) + 
+  geom_point(aes(colour = DEA),
+             show.legend = FALSE) + 
   scale_colour_manual(values = c("blue", "gray", "red")) +
-  geom_hline(yintercept = -log10(0.05), linetype = "dotted") +
-  geom_vline(xintercept = c(-1,1), linetype = "dotted") + 
+  geom_hline(yintercept = -log10(0.05),
+             linetype = "dotted") +
+  geom_vline(xintercept = c(-1,1),
+             linetype = "dotted") + 
   theme_classic() +
   theme(panel.border = element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         axis.line = element_line(colour = "black")) +
-  expand_limits(x = c(0,30), y = c(0, 1e100))
+  geom_text_repel(size=2,
+                  data=genes_to_label,
+                  aes(x=log2FoldChange, y=-log10(padj),label=symbol),
+                  max.overlaps = Inf)
 
 dev.off()
