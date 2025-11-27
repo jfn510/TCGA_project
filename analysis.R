@@ -267,6 +267,11 @@ dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
 dds_results$DEA <- "NO" 
 dds_results$DEA[dds_results$log2FoldChange > 1 & dds_results$padj < 0.05] <- "UP"
 dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "DOWN"
+# how many sig genes are there?
+sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
+sig_genes <- rownames(sig_genes)
+length(sig_genes)
+# 138
 
 # add gene symbols as column for easy plot labelling
 dds_results$symbol <- rownames(dds_results)
@@ -304,3 +309,11 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
                   max.overlaps = Inf)
 
 dev.off()
+
+# Savepoint A -------------------------------------------------------------
+
+# create save point so you can come back to the same random 24
+save.image("savepointA_DEA1-complete.RData")
+
+# DEA excluding some genes ------------------------------------------------
+
