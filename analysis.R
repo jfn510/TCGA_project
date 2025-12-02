@@ -30,7 +30,7 @@ gene_tots <- getGeneSummary(wxs_maf)
 gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$MutatedSamples
 gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$AlteredSamples
 # not sure what the differnce between the mutated and altered samples columns are
-# 24 patients had mutations in KANSL1
+# 25 patients had mutations in KANSL1
 
 # lollipop plot could not be produced, cBioPortal will be used instead
 
@@ -191,7 +191,7 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
 
 dev.off()
 
-# DE analysis - 24vs24 ----------------------------------------------------
+# DE analysis - 25vs25 ---------------------------------------------------
 
 # kansl1_muts is our object with KANSL mutant patient IDs
 # create object of KANSL1 wildtype patient IDs
@@ -212,8 +212,8 @@ IDs_to_remove
 kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
 length(kansl1_wt) # fewer than earlier - a success
 
-# create object of 24 randomly selected KANSL1 wildtype patient IDs
-kansl1_wt <- sample(kansl1_wt, 24)
+# create object of 25 randomly selected KANSL1 wildtype patient IDs
+kansl1_wt <- sample(kansl1_wt, 25)
 
 # create a sample info dataframe for differential expression
 sample_ids <- c(kansl1_muts, kansl1_wt)
@@ -271,7 +271,7 @@ dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "D
 sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
 sig_genes <- rownames(sig_genes)
 length(sig_genes)
-# 138
+# 
 
 # add gene symbols as column for easy plot labelling
 dds_results$symbol <- rownames(dds_results)
@@ -313,13 +313,16 @@ dev.off()
 # Savepoint A -------------------------------------------------------------
 
 # create save point so you can come back to the same random 24
-# save.image("savepointA_DEA1-complete.RData")
+save.image("savepointA_DEA1-complete.RData")
 
 load("savepointA_DEA1-complete.RData")
 
 # DEA excluding some genes ------------------------------------------------
 
-# create data frame which VEP and SIFT scores can be added to
+# create data frame which PolyPhen and SIFT scores can be added to (taken from GenomeNexus)
 mut_info <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id, Protein_Change])
 mut_info <- mut_info[order(mut_info$Patient_Id), ] # order Patient IDs alphabetically
-mut_info$VEP <- 
+mut_info$PolyPhen <- c('NA', 'NA', 'NA', 'NA', 0.03, 'NA','NA', 'NA', 0.99, 0.99, 'NA', 'NA', 0.24, 'NA', 'NA', 0.73, 'NA', 0.99, 0.91, 'NA', 0.66, 1.00, 0.12, 0.04, 'NA')
+mut_info$SIFT <- c('NA', 'NA', 'NA', 'NA', 0.18, 'NA', 'NA', 'NA', 0.00, 0.00, 'NA', 'NA', 0.16, 'NA', 'NA', 0.01, 'NA', 0.14, 0.01, 'NA', 0.01, 0.00, 0.10, 0.26, 'NA')
+
+# filter KANSL1 mutations
