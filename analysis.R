@@ -1,6 +1,6 @@
 # Capstone project analysis
 
-# Set-up ------------------------------------------------------------------
+# 1 Set-up ------------------------------------------------------------------
 
 # load libraries
 library(dplyr)
@@ -20,7 +20,7 @@ register(SerialParam())
 googledrive::drive_auth()
 # click 1
 
-# Identify tumours with KANSL1 mutation -----------------------------------
+# 2 Identify tumours with KANSL1 mutation -----------------------------------
 
 # read Whole Exome Sequencing maf
 wxs_maf <- read.maf('data/WXS.maf')
@@ -30,7 +30,7 @@ gene_tots <- getGeneSummary(wxs_maf)
 gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$MutatedSamples
 gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$AlteredSamples
 # not sure what the differnce between the mutated and altered samples columns are
-# 25 patients had mutations in KANSL1
+# 24 patients had mutations in KANSL1
 
 # lollipop plot could not be produced, cBioPortal will be used instead
 
@@ -39,7 +39,7 @@ kansl1_muts <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id])
 kansl1_muts
 
 
-# Investigating consensus classifiers of KANSL1 mutants -------------------
+# 3 Investigating consensus classifiers of KANSL1 mutants -------------------
 
 
 # are the KANSL1 mutants more frequently in any one of the consensus classifiers?
@@ -54,7 +54,7 @@ con_class$Patient_ID <- substr(con_class$ID, 1, 12)
 con_class_kansl1 <- con_class[con_class$Patient_ID %in% kansl1_muts, ] |> 
   select('Patient_ID', 'consensusClass')
 
-# Create pie chart --------------------------------------------------------
+# 3.1 Create pie chart --------------------------------------------------------
 
 # create two pie charts for visual comparison of whether or not there is a difference
 # the proportion of classifiers in KANSL1 mutants and the entire cohort
@@ -114,7 +114,7 @@ print(chisq.test(table))
 con_class$LumP_status <- NULL
 con_class$subtype_status <- NULL
 
-# DE analysis - KANSL1 mutants vs ALL non-mutants -----------------------------
+# 4 DE analysis - KANSL1 mutants vs ALL non-mutants -----------------------------
 
 # kansl1_muts is our object with KANSL1 mutant patient IDs
 # create object of KANSL1 wildtype patient IDs
@@ -191,7 +191,7 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
 
 dev.off()
 
-# DE analysis - 25vs25 ---------------------------------------------------
+# 5 DE analysis - 24vs24 ---------------------------------------------------
 
 # kansl1_muts is our object with KANSL mutant patient IDs
 # create object of KANSL1 wildtype patient IDs
@@ -212,8 +212,8 @@ IDs_to_remove
 kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
 length(kansl1_wt) # fewer than earlier - a success
 
-# create object of 25 randomly selected KANSL1 wildtype patient IDs
-kansl1_wt <- sample(kansl1_wt, 25)
+# create object of 24 randomly selected KANSL1 wildtype patient IDs
+kansl1_wt <- sample(kansl1_wt, 24)
 
 # create a sample info dataframe for differential expression
 sample_ids <- c(kansl1_muts, kansl1_wt)
@@ -310,14 +310,14 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
 
 dev.off()
 
-# Savepoint A -------------------------------------------------------------
+# 5.1 Savepoint A -------------------------------------------------------------
 
 # create save point so you can come back to the same random 24
-save.image("savepointA_DEA1-complete.RData")
+# save.image("savepointA_DEA1-complete.RData")
 
-load("savepointA_DEA1-complete.RData")
+# load("savepointA_DEA1-complete.RData")
 
-# DEA excluding some genes ------------------------------------------------
+# 6 DEA excluding some mutants ------------------------------------------------
 
 # create data frame which PolyPhen and SIFT scores can be added to (taken from GenomeNexus)
 mut_info <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id, Protein_Change])
@@ -325,4 +325,145 @@ mut_info <- mut_info[order(mut_info$Patient_Id), ] # order Patient IDs alphabeti
 mut_info$PolyPhen <- c('NA', 'NA', 'NA', 'NA', 0.03, 'NA','NA', 'NA', 0.99, 0.99, 'NA', 'NA', 0.24, 'NA', 'NA', 0.73, 'NA', 0.99, 0.91, 'NA', 0.66, 1.00, 0.12, 0.04, 'NA')
 mut_info$SIFT <- c('NA', 'NA', 'NA', 'NA', 0.18, 'NA', 'NA', 'NA', 0.00, 0.00, 'NA', 'NA', 0.16, 'NA', 'NA', 0.01, 'NA', 0.14, 0.01, 'NA', 0.01, 0.00, 0.10, 0.26, 'NA')
 
-# filter KANSL1 mutations
+# filter KANSL1 mutations using thresholds consistent with those used by Ensembl
+mut_info <- mut_info |> filter(PolyPhen == 'NA' | PolyPhen > 0.446 | SIFT == 'NA' | SIFT < 0.05)
+nrow(mut_info)
+# 21 mutants now remain
+
+# setting kansl_wt as these new ones
+# one of the samples has two kansl1 mutations - so unique() function is used
+kansl1_muts <- unique(mut_info$Patient_Id)
+kansl1_muts
+
+# create wildtype KANSL1 object
+kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
+kansl1_wt
+
+# 6.1 Does excluding genes make a difference? ---------------------------------
+
+# excluding mutants which don't do anything should reduce increase the number of
+# significantly differentially expressed genes
+
+# it seems that the number of significantly differentially expressed genes can vary
+# quite a lot, so I will run differential expression before and after gene exclusion 5 times
+
+# 6.2 Set up to loop DEA --------------------------------------------------
+
+# this is much of the same set up as earlier
+
+# get KANSL1 mutants again
+kansl1_muts <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id])
+kansl1_muts
+
+# kansl1_muts is our object with KANSL mutant patient IDs
+# create object of KANSL1 wildtype patient IDs
+kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
+kansl1_wt
+
+# we need to exclude tumours who have mutations that might do the same thing as KANSL1 mutants
+# these includes KANSL2 and WRD5 mutants (other subcomplexes of the NSL complex)
+# as well as HAT1 and KDM1A
+
+# extract patient IDs for all these genes
+genes_to_extract <- c('KANSL2', 'WRD5', 'HAT1', 'KDM1A')
+
+IDs_to_remove <- unique(wxs_maf@data[Hugo_Symbol %in% genes_to_extract, Patient_Id])
+IDs_to_remove
+
+# remove patient IDs who have mutations in these genes
+kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
+length(kansl1_wt) # fewer than earlier - a success
+
+# read in mRNA data from online source (AM's google drive)
+file_id <- '1djprP7DAcEwdUqugIOyQgM_JaYFmtcyl'
+mrna_temp <- tempfile(fileext = ".tsv")
+drive_download(as_id(file_id), path = mrna_temp, overwrite = TRUE)
+
+# load RNAseq count data
+counts <- read.table(mrna_temp, check.names = FALSE,
+                     header = TRUE, row.names = 1, sep = '\t')
+
+# remove temporary file
+unlink(mrna_temp)
+rm(mrna_temp)
+
+# adapt column names (remove last four characters)
+colnames(counts) <- substr(colnames(counts), 1, nchar(colnames(counts)) - 4)
+
+# round the counts and only look at complete cases (i.e. all genes, I think?)
+counts <- counts[complete.cases(counts), ]
+
+
+# 6.3 pre-exclusion DEA 6 times -------------------------------------------
+
+# create matrix to loop through
+# each row contains 24 random TCGA patient IDs from kansl1_wt
+NTIMES_TO_RUN <- 6
+NSAMPLES_TO_RUN <- 24
+wt_mat <- matrix(sample(kansl1_wt, NSAMPLES_TO_RUN*NTIMES_TO_RUN), nrow = NTIMES_TO_RUN, ncol = NSAMPLES_TO_RUN)
+
+
+DESeq_ntimes <- function(wt, mutants, counts) {
+ 
+   sample_ids <- c(unique(mutants), unique(wt))
+   genotype <- c(rep("MUT", length(mutants)), 
+                 rep("WT", length(wt)))
+   sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
+  
+   # subset counts to only include the samples in sample info
+   counts_subset <- counts[, sample_ids]
+   counts_subset <- round(counts_subset)
+   
+   # create DESeq2 object
+   dds <- DESeqDataSetFromMatrix(countData = counts_subset,
+                                 colData = sample_info,
+                                 design = ~ genotype)
+   dds$genotype <- relevel(dds$genotype, ref = "WT")
+  
+    # run DESeq
+   dds <- DESeq(dds)
+   # store results
+   dds_results <- results(dds)
+   
+   # change NA values to 0 and add a max adjusted p value
+   dds_results$log2FoldChange[is.na(dds_results$log2FoldChange)] <- 0
+   dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
+   
+   # add labels for colouring a volcano plot
+   dds_results$DEA <- "NO" 
+   dds_results$DEA[dds_results$log2FoldChange > 1 & dds_results$padj < 0.05] <- "UP"
+   dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "DOWN"
+   
+   # how many sig genes are there?
+   sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
+   sig_genes <- rownames(sig_genes)
+   print(length(sig_genes))
+   
+   return(dds_results)
+   
+}
+
+apply(X = wt_mat, MARGIN = 1, FUN = DESeq_ntimes, mutants = kansl1_muts, counts = counts)
+
+
+# 6.4 DEA with some mutants excluded, 6 times -----------------------------------------
+
+# resetting KANSL1 mutant object - won't include mutants which don't break KANSL1
+kansl1_muts <- unique(mut_info$Patient_Id)
+kansl1_muts
+
+# create wildtype KANSL1 object
+kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
+kansl1_wt
+
+# remove some wt mutants, as done in 6.2
+kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
+length(kansl1_wt)
+
+# create matrix of KANSL1 wildtypes to loop through
+NTIMES_TO_RUN <- 6
+NSAMPLES_TO_RUN <- 20 # kansl1_muts has gone down to 20 so I have set this to do the same? I guess because I added a unique somewhere?
+wt_mat <- matrix(sample(kansl1_wt, NSAMPLES_TO_RUN*NTIMES_TO_RUN), nrow = NTIMES_TO_RUN, ncol = NSAMPLES_TO_RUN)
+
+# run DESeq 6 times
+apply(X = wt_mat, MARGIN = 1, FUN = DESeq_ntimes, mutants = kansl1_muts, counts = counts)
