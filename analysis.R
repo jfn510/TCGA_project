@@ -313,7 +313,13 @@ dev.off()
 # Savepoint A -------------------------------------------------------------
 
 # create save point so you can come back to the same random 24
-save.image("savepointA_DEA1-complete.RData")
+# save.image("savepointA_DEA1-complete.RData")
+
+load("savepointA_DEA1-complete.RData")
 
 # DEA excluding some genes ------------------------------------------------
 
+# create data frame which VEP and SIFT scores can be added to
+mut_info <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id, Protein_Change])
+mut_info <- mut_info[order(mut_info$Patient_Id), ] # order Patient IDs alphabetically
+mut_info$VEP <- 
