@@ -3,6 +3,7 @@
 # 1 Set-up ------------------------------------------------------------------
 
 # load libraries
+library(tidyverse)
 library(dplyr)
 library(maftools)
 library(data.table)
@@ -15,6 +16,9 @@ library(BiocParallel)
 
 # enable parallel computing
 register(SerialParam())
+# note: serialparam does not run parallelised cod
+# it allows parallel code to be run unparallelised
+# https://www.bioconductor.org/packages//release/bioc/vignettes/BiocParallel/inst/doc/Introduction_To_BiocParallel.html#quick-start
 
 # log into google drive
 googledrive::drive_auth()
@@ -330,15 +334,6 @@ mut_info <- mut_info |> filter(PolyPhen == 'NA' | PolyPhen > 0.446 | SIFT == 'NA
 nrow(mut_info)
 # 21 mutants now remain
 
-# setting kansl_wt as these new ones
-# one of the samples has two kansl1 mutations - so unique() function is used
-kansl1_muts <- unique(mut_info$Patient_Id)
-kansl1_muts
-
-# create wildtype KANSL1 object
-kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
-kansl1_wt
-
 # 6.1 Does excluding genes make a difference? ---------------------------------
 
 # excluding mutants which don't do anything should reduce increase the number of
@@ -398,10 +393,10 @@ counts <- counts[complete.cases(counts), ]
 
 # create matrix to loop through
 # each row contains 24 random TCGA patient IDs from kansl1_wt
-NTIMES_TO_RUN <- 6
+NTIMES_TO_RUN <- 12
 NSAMPLES_TO_RUN <- 24
-wt_mat <- matrix(sample(kansl1_wt, NSAMPLES_TO_RUN*NTIMES_TO_RUN), nrow = NTIMES_TO_RUN, ncol = NSAMPLES_TO_RUN)
-
+wt_mat <- matrix(sample(kansl1_wt, NSAMPLES_TO_RUN*NTIMES_TO_RUN),
+                 nrow = NTIMES_TO_RUN, ncol = NSAMPLES_TO_RUN)
 
 DESeq_ntimes <- function(wt, mutants, counts) {
  
@@ -437,14 +432,15 @@ DESeq_ntimes <- function(wt, mutants, counts) {
    # how many sig genes are there?
    sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
    sig_genes <- rownames(sig_genes)
-   print(length(sig_genes))
+   return(length(sig_genes))
    
-   return(dds_results)
    
 }
 
-apply(X = wt_mat, MARGIN = 1, FUN = DESeq_ntimes, mutants = kansl1_muts, counts = counts)
+nsig24 <- apply(X = wt_mat, MARGIN = 1, FUN = DESeq_ntimes, 
+        mutants = kansl1_muts, counts = counts)
 
+saveRDS(nsig24, file = 'outputs/nsig24.RDS')
 
 # 6.4 DEA with some mutants excluded, 6 times -----------------------------------------
 
@@ -454,16 +450,76 @@ kansl1_muts
 
 # create wildtype KANSL1 object
 kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
-kansl1_wt
+length(kansl1_wt)
 
 # remove some wt mutants, as done in 6.2
 kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
 length(kansl1_wt)
 
 # create matrix of KANSL1 wildtypes to loop through
-NTIMES_TO_RUN <- 6
+NTIMES_TO_RUN <- 12
 NSAMPLES_TO_RUN <- 20 # kansl1_muts has gone down to 20 so I have set this to do the same? I guess because I added a unique somewhere?
-wt_mat <- matrix(sample(kansl1_wt, NSAMPLES_TO_RUN*NTIMES_TO_RUN), nrow = NTIMES_TO_RUN, ncol = NSAMPLES_TO_RUN)
+wt_mat <- matrix(sample(kansl1_wt, NSAMPLES_TO_RUN*NTIMES_TO_RUN),
+                 nrow = NTIMES_TO_RUN, ncol = NSAMPLES_TO_RUN)
 
-# run DESeq 6 times
-apply(X = wt_mat, MARGIN = 1, FUN = DESeq_ntimes, mutants = kansl1_muts, counts = counts)
+# run DESeq n times and save
+nsig20 <- apply(X = wt_mat, MARGIN = 1, FUN = DESeq_ntimes, 
+                mutants = kansl1_muts, counts = counts)
+
+saveRDS(nsig20, file = 'outputs/nsig20.RDS')
+
+# 6.5 Looking at the difference in nsig genes -----------------------------------
+
+
+# create tidy data frame for plotting a box plot
+nsig_all <- data.frame(nsig24)
+nsig_all$KANSL1_mutants <- 'All'
+nsig_all$nsig_genes <- nsig_all$nsig24
+nsig_all$nsig24 <- NULL
+nsig_all
+
+nsig_excl <- data.frame(nsig20)
+nsig_excl$KANSL1_mutants <- 'Excluded'
+nsig_excl$nsig_genes <- nsig_excl$nsig20
+nsig_excl$nsig20 <- NULL
+nsig_excl
+
+nsigs <- rbind(nsig_all, nsig_excl)
+
+saveRDS(nsigs, file = 'outputs/nsigs.RDS')
+
+# some helpful summary stastics
+nsigs_summary <- nsigs |> 
+  group_by(KANSL1_mutants) |> 
+  summarise(mean = mean(nsig_genes),
+            median = median(nsig_genes),
+            sd = sd(nsig_genes),
+            n = length(nsig_genes),
+            se = sd/sqrt(n))
+
+# create plot
+png(file = 'plots/excluding_mutants.png',
+    width = 5, height = 7, units = 'in', res = 1000)
+
+ggplot() +
+  geom_point(data = nsigs, aes(x = KANSL1_mutants, y = nsig_genes),
+             position = position_jitter(width = 0.1, height = 0)) + 
+  geom_errorbar(data = nsigs_summary,
+                aes(x = KANSL1_mutants, ymin = mean - se, ymax = mean + se),
+                width = 0.5) +
+  geom_errorbar(data = nsigs_summary,
+              aes(x = KANSL1_mutants, ymin = mean, ymax = mean),
+              width = 0.3) +
+  annotate("segment", x = 1, xend = 2, y = 1300, yend = 1300,
+           colour = "black") +
+  annotate('text', x = 1.5, y = 1350,
+           label = 'n.s.') +
+  theme_classic()
+
+dev.off()
+
+# looks like the reverse of what was expected
+
+# run t test
+t.test(formula = nsig_genes ~ KANSL1_mutants, data = nsigs)
+# 
