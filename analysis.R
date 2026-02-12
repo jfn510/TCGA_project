@@ -33,7 +33,7 @@ wxs_maf <- read.maf('data/WXS.maf')
 gene_tots <- getGeneSummary(wxs_maf)
 gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$MutatedSamples
 gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$AlteredSamples
-# not sure what the differnce between the mutated and altered samples columns are
+# not sure what the difference between the mutated and altered samples columns are
 # 24 patients had mutations in KANSL1
 
 # lollipop plot could not be produced, cBioPortal will be used instead
@@ -42,9 +42,7 @@ gene_tots[grep('KANSL1', gene_tots$Hugo_Symbol),]$AlteredSamples
 kansl1_muts <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id])
 kansl1_muts
 
-
 # 3 Investigating consensus classifiers of KANSL1 mutants -------------------
-
 
 # are the KANSL1 mutants more frequently in any one of the consensus classifiers?
 con_class <- read.table("data/mRNA_gc47-TPMs_ConsensusClassifier.tsv", 
@@ -550,3 +548,156 @@ t.test(formula = nsig_genes ~ KANSL1_mutants, data = nsigs)
 # 6.6 Savepoint B ---------------------------------------------------------
 
 # save.image("savepointB_DEA2-complete.RData")
+
+
+# 7 New semester: DEA KANSL1 mutants vs ALL KANSL1 WT cancers ---------------
+
+# BUT this time performing some sensible exclusions first
+# Read Lab Book to understand the reasoning behind the new strategy
+# new year new DEA
+
+# 7.1 exclusions ----------------------------------------------------------
+
+# exclude tumours with mutations that might do the same thing as KANSL1 mutants
+# KANSL2, WDR5, HAT1 and KDM1A
+
+# extract patient IDs for all these genes
+genes_to_extract <- c('KANSL2', 'WRD5', 'HAT1', 'KDM1A')
+
+IDs_to_remove <- unique(wxs_maf@data[Hugo_Symbol %in% genes_to_extract, Patient_Id])
+IDs_to_remove
+
+# kansl1_muts is our object with KANSL1 mutant patient IDs
+# create object of KANSL1 wildtype patient IDs
+kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
+length(kansl1_wt) # 384
+
+# remove patient IDs who have mutations in these genes
+kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
+length(kansl1_wt) # 374 - fewer than earlier - a success
+
+# exclude KANSL1 mutants where the mutation might not actually do anything
+# keep high PolyPhen values and and low SIFT values
+
+# create data frame which PolyPhen and SIFT scores can be added to (taken from GenomeNexus)
+mut_info <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id, Protein_Change])
+mut_info <- mut_info[order(mut_info$Patient_Id), ] # order Patient IDs alphabetically
+mut_info$PolyPhen <- c('NA', 'NA', 'NA', 'NA', 0.03, 'NA','NA', 'NA', 0.99, 0.99, 'NA', 'NA', 0.24, 'NA', 'NA', 0.73, 'NA', 0.99, 0.91, 'NA', 0.66, 1.00, 0.12, 0.04, 'NA')
+mut_info$SIFT <- c('NA', 'NA', 'NA', 'NA', 0.18, 'NA', 'NA', 'NA', 0.00, 0.00, 'NA', 'NA', 0.16, 'NA', 'NA', 0.01, 'NA', 0.14, 0.01, 'NA', 0.01, 0.00, 0.10, 0.26, 'NA')
+
+# filter KANSL1 mutations using thresholds consistent with those used by Ensembl
+mut_info <- mut_info |> filter(PolyPhen == 'NA' | PolyPhen > 0.446 | SIFT == 'NA' | SIFT < 0.05)
+nrow(mut_info)
+# there are now 21 KANSL1 mutants remaining
+
+# setting KANSL1 mutant object
+kansl1_muts <- unique(mut_info$Patient_Id)
+kansl1_muts
+length(kansl1_muts)
+
+# clear up
+rm(genes_to_extract, mut_info, IDs_to_remove)
+
+# 7.2 DEA -----------------------------------------------------------------
+
+# create a sample info dataframe for differential expression
+sample_ids <- c(kansl1_muts, kansl1_wt)
+sample_ids
+
+genotype <- c(rep("MUT", length(kansl1_muts)), 
+              rep("WT", length(kansl1_wt)))
+genotype
+
+sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
+
+# clear up
+rm(genotype)
+
+# read in mRNA data from online source (AM's google drive)
+file_id <- '1djprP7DAcEwdUqugIOyQgM_JaYFmtcyl'
+mrna_temp <- tempfile(fileext = ".tsv")
+drive_download(as_id(file_id), path = mrna_temp, overwrite = TRUE)
+
+# load RNAseq count data
+counts <- read.table(mrna_temp, check.names = FALSE,
+                     header = TRUE, row.names = 1, sep = '\t')
+
+# remove temporary file
+unlink(mrna_temp)
+rm(mrna_temp, file_id)
+
+# remove last 4 characters
+colnames(counts) <- substr(colnames(counts), 1, nchar(colnames(counts)) - 4)
+
+# sanity check - make sure samples in counts are the same as the samples taken from mutation data
+counts <- counts[ , sample_ids]
+
+# round the counts and only look at complete cases (i.e. all genes, I think?)
+counts <- round(counts[complete.cases(counts), ])
+
+# create DESeq2 object
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = sample_info,
+                              design = ~ genotype)
+
+dds$genotype <- relevel(dds$genotype, ref = "WT")
+dds <- DESeq(dds)
+
+# store results
+dds_results <- results(dds)
+dds_results
+
+# tidy up
+rm(dds)
+
+# change NA values to 0 and add a max adjusted p value
+dds_results$log2FoldChange[is.na(dds_results$log2FoldChange)] <- 0
+dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
+
+
+# add labels for colouring a volcano plot
+dds_results$DEA <- "NO" 
+dds_results$DEA[dds_results$log2FoldChange > 1 & dds_results$padj < 0.05] <- "UP"
+dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "DOWN"
+# how many sig genes are there?
+sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
+sig_genes <- rownames(sig_genes)
+length(sig_genes)
+# 2328 
+
+# add gene symbols as column for easy plot labelling
+dds_results$symbol <- rownames(dds_results)
+
+# create pi values (fold change multiplied by stat significance) for later gene ranking
+dds_results$pi <- dds_results$log2FoldChange * -log10(dds_results$padj)
+dds_results_pi_sorted <- dds_results[order(dds_results$pi),]
+
+# create reduced dataframe of most significantly different genes, for labelling
+# using pi values means you prioritise most biologically significant
+top_genes <- c(head(dds_results_pi_sorted$symbol, 20), tail(dds_results_pi_sorted$symbol, 20))
+genes_to_label <- dds_results[dds_results$symbol %in% top_genes, ]
+
+# create volcano plot
+png(file = 'plots/DEA_kansl1.png',
+    width = 8, height = 5, units = 'in', res = 1000)
+
+# create a labelled, coloured and annotated volcano plot
+ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
+  geom_point(aes(colour = DEA),
+             show.legend = FALSE) + 
+  scale_colour_manual(values = c("blue", "gray", "red")) +
+  geom_hline(yintercept = -log10(0.05),
+             linetype = "dotted") +
+  geom_vline(xintercept = c(-1,1),
+             linetype = "dotted") + 
+  theme_classic() +
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")) +
+  geom_text_repel(size=2,
+                  data=genes_to_label,
+                  aes(x=log2FoldChange, y=-log10(padj),label=symbol),
+                  max.overlaps = Inf)
+
+dev.off()
