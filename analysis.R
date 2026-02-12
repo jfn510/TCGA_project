@@ -120,6 +120,20 @@ con_class$subtype_status <- NULL
 
 # 4 DE analysis - KANSL1 mutants vs ALL non-mutants -----------------------------
 
+# we need to exclude tumours who have mutations that might do the same thing as KANSL1 mutants
+# these includes KANSL2 and WRD5 mutants (other subcomplexes of the NSL complex)
+# as well as HAT1 and KDM1A
+
+# extract patient IDs for all these genes
+genes_to_extract <- c('KANSL2', 'WRD5', 'HAT1', 'KDM1A')
+
+IDs_to_remove <- unique(wxs_maf@data[Hugo_Symbol %in% genes_to_extract, Patient_Id])
+IDs_to_remove
+
+# remove patient IDs who have mutations in these genes
+kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
+length(kansl1_wt) # fewer than earlier - a success
+
 # kansl1_muts is our object with KANSL1 mutant patient IDs
 # create object of KANSL1 wildtype patient IDs
 kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
@@ -135,10 +149,20 @@ genotype
 
 sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
 
-# load RNAseq count data, adapt column names (remove last four characters)
-counts <- read.table('data/mRNA_gc47-counts.tsv', check.names = FALSE,
-                      header = TRUE, row.names = 1, sep = '\t')
+# read in mRNA data from online source (AM's google drive)
+file_id <- '1djprP7DAcEwdUqugIOyQgM_JaYFmtcyl'
+mrna_temp <- tempfile(fileext = ".tsv")
+drive_download(as_id(file_id), path = mrna_temp, overwrite = TRUE)
 
+# load RNAseq count data
+counts <- read.table(mrna_temp, check.names = FALSE,
+                     header = TRUE, row.names = 1, sep = '\t')
+
+# remove temporary file
+unlink(mrna_temp)
+rm(mrna_temp)
+
+# remove last 4 characters
 colnames(counts) <- substr(colnames(counts), 1, nchar(colnames(counts)) - 4)
 
 # sanity check - make sure samples in counts are the same as the samples taken from mutation data
@@ -522,4 +546,7 @@ dev.off()
 
 # run t test
 t.test(formula = nsig_genes ~ KANSL1_mutants, data = nsigs)
-# 
+
+# 6.6 Savepoint B ---------------------------------------------------------
+
+# save.image("savepointB_DEA2-complete.RData")
