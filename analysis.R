@@ -11,7 +11,7 @@ library(googledrive)
 library(ggplot2)
 library(ggrepel)
 library(DESeq2)
-# library(fgsea) # couldn't be installed but ignoring this for now
+library(fgsea)
 library(BiocParallel)
 
 # enable parallel computing
@@ -713,4 +713,40 @@ write.table(dds_results, file = 'results/KANSL1_mutvsWT_DEA_results.tsv', sep = 
             row.names = FALSE, col.names = FALSE)
 
 # tidy up
-rm(HGVSc, HGVSg, sig_genes, top_genes, dds_results, dds_results_pi_sorted, genes_to_label)
+rm(sig_genes, top_genes, dds_results_pi_sorted, genes_to_label)
+
+# 7.4 GSEA on KANSL1 mutant vs WT DEA --------------------------------------------
+
+# load MSigDB gene set
+genesets = gmtPathways("data/c2.all.v2023.2.Hs.symbols.gmt")
+
+# use pi values to rank genes from "most up" to "most down" in the comparison
+prerank <- dds_results[c("symbol", "pi")]
+prerank <- setNames(prerank$pi, prerank$symbol)
+str(prerank)
+
+# run fgsea
+fgseaRes <- fgsea(pathways = genesets, stats = prerank, minSize=15, maxSize = 500)
+
+# store top10 most enriched
+# positive enrichment is (relatively) up in the KANSL1 mutant tumours
+# negative enrichment is (relatively) up in the KANSL1 wildtype tumours
+top10_fgseaRes <- head(fgseaRes[order(pval), ], 10)
+top10_fgseaRes
+
+# create bar chart of normalised enrichment scores (NES) for top10 hits
+png(file = 'plots/FGSEA_KANSL1_mut_vs_WT.png',
+    width = 12, height = 5, units = 'in', res = 1000)
+
+ggplot(top10_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(NES)))) + 
+  geom_bar(stat = "identity", width = 0.8) +
+  labs(title = "GSEA", x = "Normalised Enrichment Score (NES)", y = "Pathway") +
+  theme_minimal(base_size = 16) +
+  scale_fill_manual(values = c("#0754A2", "#B10029"), guide = "none") +
+  scale_y_discrete(labels = function(x) gsub("^HALLMARK_", "", x)) +
+  theme(axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+dev.off()
