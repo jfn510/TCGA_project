@@ -588,17 +588,18 @@ mut_info$SIFT <- c('NA', 'NA', 'NA', 'NA', 0.18, 'NA', 'NA', 'NA', 0.00, 0.00, '
 # filter KANSL1 mutations using thresholds consistent with those used by Ensembl
 mut_info <- mut_info |> filter(PolyPhen == 'NA' | PolyPhen > 0.446 | SIFT == 'NA' | SIFT < 0.05)
 nrow(mut_info)
-# there are now 21 KANSL1 mutants remaining
+# 21 notable mutations remaining
 
 # setting KANSL1 mutant object
 kansl1_muts <- unique(mut_info$Patient_Id)
 kansl1_muts
 length(kansl1_muts)
+# there's 20 KANSL1 mutants left - two of the mutations identified above are from the same patient
 
 # clear up
 rm(genes_to_extract, mut_info, IDs_to_remove)
 
-# 7.2 DEA -----------------------------------------------------------------
+# 7.2 DEA set up -----------------------------------------------------------------
 
 # create a sample info dataframe for differential expression
 sample_ids <- c(kansl1_muts, kansl1_wt)
@@ -624,6 +625,8 @@ counts <- read.table(mrna_temp, check.names = FALSE,
 
 # remove temporary file
 unlink(mrna_temp)
+
+# tidy up
 rm(mrna_temp, file_id)
 
 # remove last 4 characters
@@ -634,6 +637,8 @@ counts <- counts[ , sample_ids]
 
 # round the counts and only look at complete cases (i.e. all genes, I think?)
 counts <- round(counts[complete.cases(counts), ])
+
+# 7.3 run DEA -----------------------------------------------------------------
 
 # create DESeq2 object
 dds <- DESeqDataSetFromMatrix(countData = counts,
@@ -659,11 +664,12 @@ dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
 dds_results$DEA <- "NO" 
 dds_results$DEA[dds_results$log2FoldChange > 1 & dds_results$padj < 0.05] <- "UP"
 dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "DOWN"
+
 # how many sig genes are there?
 sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
 sig_genes <- rownames(sig_genes)
 length(sig_genes)
-# 2328 
+# 459 
 
 # add gene symbols as column for easy plot labelling
 dds_results$symbol <- rownames(dds_results)
@@ -701,3 +707,10 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
                   max.overlaps = Inf)
 
 dev.off()
+
+# save data
+write.table(dds_results, file = 'results/KANSL1_mutvsWT_DEA_results.tsv', sep = '/t',
+            row.names = FALSE, col.names = FALSE)
+
+# tidy up
+rm(HGVSc, HGVSg, sig_genes, top_genes, dds_results, dds_results_pi_sorted, genes_to_label)
