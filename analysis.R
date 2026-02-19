@@ -51,6 +51,7 @@ summary(con_class)
 
 # add Patient ID column with 01A removed from each of the IDs
 con_class$Patient_ID <- substr(con_class$ID, 1, 12)
+# run up to here for set up of later analysis
 
 # what are the classifiers for the KANSL1 mutants we extracted?
 con_class_kansl1 <- con_class[con_class$Patient_ID %in% kansl1_muts, ] |> 
@@ -684,8 +685,9 @@ top_genes <- c(head(dds_results_pi_sorted$symbol, 20), tail(dds_results_pi_sorte
 genes_to_label <- dds_results[dds_results$symbol %in% top_genes, ]
 
 # create volcano plot
-png(file = 'plots/DEA_kansl1.png',
-    width = 8, height = 5, units = 'in', res = 1000)
+# png(file = 'plots/DEA_kansl1.png',
+#    width = 8, height = 5, units = 'in', res = 1000)
+# hidden to avoid accidental edits
 
 # create a labelled, coloured and annotated volcano plot
 ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
@@ -712,8 +714,41 @@ dev.off()
 write.table(dds_results, file = 'results/KANSL1_mutvsWT_DEA_results.tsv', sep = '/t',
             row.names = FALSE, col.names = FALSE)
 
-# tidy up
-rm(sig_genes, top_genes, dds_results_pi_sorted, genes_to_label)
+# 7.3.1 Is KANSL1 differentially expressed--------------------------------------------------
+
+# this feels like it might be a prudent thing to check - that KANSL1 is actually 
+# down in KANSL1 mutants. also helps us to orientate ourselves
+
+# get KANSL1 DEA info
+dds_results[dds_results$symbol == "KANSL1", ]
+# hm barely no change
+# should this be a concern?
+
+# volcano plot with KANSL1 labelled
+genes_to_label <- dds_results[dds_results$symbol %in% c(top_genes, 'KANSL1'), ]
+
+png(file = 'plots/DEA_kansl1-labelled.png',
+    width = 8, height = 5, units = 'in', res = 1000)
+
+ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
+  geom_point(aes(colour = DEA),
+             show.legend = FALSE) + 
+  scale_colour_manual(values = c("blue", "gray", "red")) +
+  geom_hline(yintercept = -log10(0.05),
+             linetype = "dotted") +
+  geom_vline(xintercept = c(-1,1),
+             linetype = "dotted") + 
+  theme_classic() +
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")) +
+  geom_text_repel(size=2,
+                  data=genes_to_label,
+                  aes(x=log2FoldChange, y=-log10(padj),label=symbol),
+                  max.overlaps = Inf)
+
+dev.off()
 
 # 7.4 GSEA on KANSL1 mutant vs WT DEA --------------------------------------------
 
