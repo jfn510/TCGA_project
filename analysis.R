@@ -2,7 +2,7 @@
 
 # 1 Set-up ------------------------------------------------------------------
 
-# load libraries
+# load packages
 library(tidyverse)
 library(dplyr)
 library(maftools)
@@ -101,6 +101,7 @@ chisq.test(table)
 # no significant change 
 
 # code could be adapted to investigate all 6
+# add some more info for a summary table too
 for (subtype in c('LumP', 'LumNS', 'Ba/Sq', 'Stroma-rich', 'NE-like', 'LumU')) { 
 con_class$subtype_status <- ifelse(con_class$consensusClass == subtype, 'TRUE', 'FALSE')
 
@@ -108,7 +109,23 @@ con_class$subtype_status <- ifelse(con_class$consensusClass == subtype, 'TRUE', 
 table <- table(con_class$subtype_status, con_class$KANSL1)
 
 # run chi-squared test
+print(subtype)
 print(chisq.test(table))
+
+# get some more statistics for a summary table
+# the number of each subtype in the TCGA cohort
+# the number of each subtype in KANSL1 mutants
+# the proportion of each subtype in the TCGA cohort
+# the proportion of each subtype in KANSL1 mutants
+no_TCGA <- sum(con_class$subtype_status == 'TRUE')
+no_KANSL1muts <- sum(con_class$subtype_status == 'TRUE' & con_class$KANSL1 == 'mutant')
+prop_TCGA <- no_TCGA/nrow(con_class)
+prop_KANSL1muts <- no_KANSL1muts/sum(con_class$KANSL1 == 'mutant')
+print(no_TCGA)
+print(no_KANSL1muts)
+print(prop_TCGA)
+print(prop_KANSL1muts)
+  
 }
 # none of them are significant
 # also most of them are really small sample sizes so it wouldn't have mattered if they were
