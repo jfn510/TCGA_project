@@ -737,35 +737,62 @@ write.table(dds_results, file = 'results/KANSL1_mutvsWT_DEA_results.tsv', sep = 
 # down in KANSL1 mutants. also helps us to orientate ourselves
 
 # get KANSL1 DEA info
-dds_results[dds_results$symbol == "KANSL1", ]
+#dds_results[dds_results$symbol == "KANSL1", ]
 # hm barely no change
 # should this be a concern?
 
 # volcano plot with KANSL1 labelled
-genes_to_label <- dds_results[dds_results$symbol %in% c(top_genes, 'KANSL1'), ]
+#genes_to_label <- dds_results[dds_results$symbol %in% c(top_genes, 'KANSL1'), ]
 
-png(file = 'plots/DEA_kansl1-labelled.png',
-    width = 8, height = 5, units = 'in', res = 1000)
+#png(file = 'plots/DEA_kansl1-labelled.png',
+ #   width = 8, height = 5, units = 'in', res = 1000)
 
-ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
-  geom_point(aes(colour = DEA),
-             show.legend = FALSE) + 
-  scale_colour_manual(values = c("blue", "gray", "red")) +
-  geom_hline(yintercept = -log10(0.05),
-             linetype = "dotted") +
-  geom_vline(xintercept = c(-1,1),
-             linetype = "dotted") + 
-  theme_classic() +
-  theme(panel.border = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.line = element_line(colour = "black")) +
-  geom_text_repel(size=2,
-                  data=genes_to_label,
-                  aes(x=log2FoldChange, y=-log10(padj),label=symbol),
-                  max.overlaps = Inf)
+#ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
+ # geom_point(aes(colour = DEA),
+  #           show.legend = FALSE) + 
+  #scale_colour_manual(values = c("blue", "gray", "red")) +
+  #geom_hline(yintercept = -log10(0.05),
+  #           linetype = "dotted") +
+  #geom_vline(xintercept = c(-1,1),
+  #           linetype = "dotted") + 
+  #theme_classic() +
+  #theme(panel.border = element_blank(),
+  #      panel.grid.major = element_blank(),
+  #      panel.grid.minor = element_blank(),
+  #      axis.line = element_line(colour = "black")) +
+  #geom_text_repel(size=2,
+  #                data=genes_to_label,
+  #                aes(x=log2FoldChange, y=-log10(padj),label=symbol),
+  #                max.overlaps = Inf)
 
-dev.off()
+# dev.off()
+
+# good news - this isn't important to check
+# hiding this code with hashes
+
+
+# 7.3.2 Checking which way round the volcano plot is -------------------------------------------------------------------
+
+# this is alos a prudent thing to check
+# pick a gene from the volcano plot, look at the TPMs in counts
+counts['MOG', ]
+# mostly 0, 1 and 2 TPMs
+# some much higher - TCGA-XF-AAMG has 95
+# is this a KANSL1 mutant?
+sample_info['TCGA-XF-AAMG', ]
+# YES
+# so feeling pretty good that the red side is genes up in KANSL1 mutants
+# can look at all KANSL1 mutants pretty easily
+counts['MOG' , kansl1_muts]
+# definitely higher than background 0s and 1s
+
+# can do the same with a blue gene
+counts['TENM2', ]
+counts['TENM2' , kansl1_muts]
+# MOST of these are just in double digits, where the others as a whole were in triple/quadruple
+
+# SO I'm pretty happy - reds are up in KANSL1 mutants, blues are down in KANSL1 mutants
+# and we definitely set ref = WT, which backs this up
 
 # 7.4 GSEA on KANSL1 mutant vs WT DEA --------------------------------------------
 
@@ -785,6 +812,7 @@ fgseaRes <- fgsea(pathways = genesets, stats = prerank, minSize=15, maxSize = 50
 # negative enrichment is (relatively) up in the KANSL1 wildtype tumours
 top10_fgseaRes <- head(fgseaRes[order(pval), ], 10)
 top10_fgseaRes
+# top 7 have padj <0.05
 
 # create bar chart of normalised enrichment scores (NES) for top10 hits
 png(file = 'plots/FGSEA_KANSL1_mut_vs_WT.png',
