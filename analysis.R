@@ -849,6 +849,9 @@ krt_lEdge <- unlist(sig_fgseaRes[pathway == 'REACTOME_KERATINIZATION', leadingEd
 # replot volcano plot with these genes labelled to see where they are
 genes_to_label <- dds_results[dds_results$symbol %in% krt_lEdge, ]
 
+# png(file = 'plots/DEA_keratins-labelled.png',
+#   width = 8, height = 5, units = 'in', res = 1000)
+
 ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
   geom_point(aes(colour = DEA),
              show.legend = FALSE) + 
@@ -867,8 +870,81 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
                   aes(x=log2FoldChange, y=-log10(padj),label=symbol),
                   max.overlaps = Inf)
 
+# dev.off()
 
 # 8 Running 20vs20 DEA ----------------------------------------------------
 
 # it would back up any interesting genes we've found to run the DEA 20vs20
-# (20 KANSL1 mutants vs 20 WT). since the 20 W
+# (20 KANSL1 mutants vs 20 WT). since the 20 WTs are random and the genes that come up
+# are pretty different each time, I want to write some code which runs the DEA multiple times,
+# stores the results from each run, and calculates a the proportion of times a gene was significant
+
+# set up matrix of WT selection to run
+NTIMES_TO_RUN <- 3
+NSAMPLES_TO_RUN <- 20
+wt_mat <- matrix(sample(kansl1_wt, NSAMPLES_TO_RUN*NTIMES_TO_RUN),
+                 nrow = NTIMES_TO_RUN, ncol = NSAMPLES_TO_RUN)
+
+DESeq_ntimes <- function(wt, mutants, counts) {
+  
+  sample_ids <- c(unique(mutants), unique(wt))
+  genotype <- c(rep("MUT", length(mutants)), 
+                rep("WT", length(wt)))
+  sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
+  
+  # subset counts to only include the samples in sample info
+  counts_subset <- counts[, sample_ids]
+  counts_subset <- round(counts_subset)
+  
+  # create DESeq2 object
+  dds <- DESeqDataSetFromMatrix(countData = counts_subset,
+                                colData = sample_info,
+                                design = ~ genotype)
+  dds$genotype <- relevel(dds$genotype, ref = "WT")
+  
+  # run DESeq
+  dds <- DESeq(dds)
+  # store results
+  dds_results <- results(dds)
+  
+  # change NA values to 0 and add a max adjusted p value
+  dds_results$log2FoldChange[is.na(dds_results$log2FoldChange)] <- 0
+  dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
+  
+  # add UP/DOWN regulated labels
+  dds_results$DEA <- "NO" 
+  dds_results$DEA[dds_results$log2FoldChange > 1 & dds_results$padj < 0.05] <- "UP"
+  dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "DOWN"
+  
+  # return results
+  return(as.data.frame(dds_results))
+  
+}
+
+# create emptor vector (type = list) to store results in 
+DEA_results <- vector("list", NTIMES_TO_RUN)
+
+for (i in seq_len(NTIMES_TO_RUN)) {
+  
+  # select WT samples for this run
+  wt_samples <- wt_mat[i, ]
+  
+  # run DESeq for this run and store run results in res
+  res <- DESeq_ntimes(wt = wt_samples, mutants = kansl1_muts, counts = counts)
+  
+  # add column saying which run this is
+  res$run <- i
+  
+  # add run results to overall results vector
+  DEA_results[[i]] <- res
+  
+}
+
+# combine the DEA results by row (gene)
+DEA_combined <- do.call(rbind, DEA_results)
+
+# tidy up - DEA_results is huge
+rm(DEA_results)
+
+# add gene column for easier manipulation later
+DEA_combined$gene <- rownames(DEA_combined)
