@@ -725,7 +725,7 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
                   aes(x=log2FoldChange, y=-log10(padj),label=symbol),
                   max.overlaps = Inf)
 
-dev.off()
+# dev.off()
 
 # save data
 write.table(dds_results, file = 'results/KANSL1_mutvsWT_DEA_results.tsv', sep = '/t',
@@ -809,16 +809,26 @@ fgseaRes <- fgsea(pathways = genesets, stats = prerank, minSize=15, maxSize = 50
 
 # store top10 most enriched
 # positive enrichment is (relatively) up in the KANSL1 mutant tumours
-# negative enrichment is (relatively) up in the KANSL1 wildtype tumours
+
+#~ negative enrichment is (relatively) up in the KANSL1 wildtype tumours
 top10_fgseaRes <- head(fgseaRes[order(pval), ], 10)
 top10_fgseaRes
 # top 7 have padj <0.05
 
+# these seem to keep changing each time the code is run
+# look at more - 100 
+top100_fgseaRes <- head(fgseaRes[order(pval), ], 100)
+top100_fgseaRes
+
+# there's a lot tied - let's just look at those with a padj <0.05 for now
+sig_fgseaRes <- fgseaRes[padj < 0.05, ]
+  
 # create bar chart of normalised enrichment scores (NES) for top10 hits
-png(file = 'plots/FGSEA_KANSL1_mut_vs_WT.png',
+# hidden to avoid overwriting
+png(file = 'plots/FGSEA_KANSL1_mut_vs_WT_padj0.05.png',
     width = 12, height = 5, units = 'in', res = 1000)
 
-ggplot(top10_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(NES)))) + 
+ggplot(sig_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(NES)))) + 
   geom_bar(stat = "identity", width = 0.8) +
   labs(title = "GSEA", x = "Normalised Enrichment Score (NES)", y = "Pathway") +
   theme_minimal(base_size = 16) +
@@ -830,3 +840,35 @@ ggplot(top10_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sig
         panel.grid.minor = element_blank())
 
 dev.off()
+
+# 7.4.1 Looking at Keratinisation -------------------------------------------------------------------
+
+# what are the leading edge genes for the keratinisation gene set?
+krt_lEdge <- unlist(sig_fgseaRes[pathway == 'REACTOME_KERATINIZATION', leadingEdge])
+
+# replot volcano plot with these genes labelled to see where they are
+genes_to_label <- dds_results[dds_results$symbol %in% krt_lEdge, ]
+
+ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
+  geom_point(aes(colour = DEA),
+             show.legend = FALSE) + 
+  scale_colour_manual(values = c("blue", "gray", "red")) +
+  geom_hline(yintercept = -log10(0.05),
+             linetype = "dotted") +
+  geom_vline(xintercept = c(-1,1),
+             linetype = "dotted") + 
+  theme_classic() +
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")) +
+  geom_text_repel(size=2,
+                  data=genes_to_label,
+                  aes(x=log2FoldChange, y=-log10(padj),label=symbol),
+                  max.overlaps = Inf)
+
+
+# 8 Running 20vs20 DEA ----------------------------------------------------
+
+# it would back up any interesting genes we've found to run the DEA 20vs20
+# (20 KANSL1 mutants vs 20 WT). since the 20 W
