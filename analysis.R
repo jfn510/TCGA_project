@@ -788,7 +788,7 @@ counts['MOG' , kansl1_muts]
 
 # can do the same with a blue gene
 counts['TENM2', ]
-counts['TENM2' , kansl1_muts]
+counts['TENM2', kansl1_muts]
 # MOST of these are just in double digits, where the others as a whole were in triple/quadruple
 
 # SO I'm pretty happy - reds are up in KANSL1 mutants, blues are down in KANSL1 mutants
@@ -932,6 +932,10 @@ for (i in seq_len(NTIMES_TO_RUN)) {
   # run DESeq for this run and store run results in res
   res <- DESeq_ntimes(wt = wt_samples, mutants = kansl1_muts, counts = counts)
   
+  # add gene name in a column which isn't the row name
+  # done here to avoid naming complications
+  res$gene <- rownames(res)
+  
   # add column saying which run this is
   res$run <- i
   
@@ -944,7 +948,25 @@ for (i in seq_len(NTIMES_TO_RUN)) {
 DEA_combined <- do.call(rbind, DEA_results)
 
 # tidy up - DEA_results is huge
-rm(DEA_results)
+# rm(DEA_results)
 
-# add gene column for easier manipulation later
-DEA_combined$gene <- rownames(DEA_combined)
+# create summary table
+DEA_summary <- DEA_combined |> 
+  group_by(gene) |> 
+  summarise(n_UP = sum(DEA == "UP"),
+    n_DOWN = sum(DEA == "DOWN"),
+    prop_UP = n_UP / NTIMES_TO_RUN,
+    prop_DOWN = n_DOWN / NTIMES_TO_RUN,
+    prop_DE = (n_UP + n_DOWN) / NTIMES_TO_RUN,
+    mean_log2FC = mean(log2FoldChange),
+    median_log2FC = median(log2FoldChange),
+    sd_log2FC = sd(log2FoldChange))
+
+# how does this look
+head(DEA_summary, n = 10)
+
+# extract reproducible genes which are significant > half the time
+rep_genes <- DEA_summary[DEA_summary$prop_DE > 0.5, ]
+dim(rep_genes)
+
+# this code is now ready for a larger number of runs another time
