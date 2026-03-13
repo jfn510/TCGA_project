@@ -728,8 +728,9 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
 # dev.off()
 
 # save data
-write.table(dds_results, file = 'results/KANSL1_mutvsWT_DEA_results.tsv', sep = '/t',
-            row.names = FALSE, col.names = FALSE)
+dds_df <- as.data.frame(dds_results)
+write.csv(dds_df, "results/KANSL1_mutvsWT_DEA_results.csv", row.names = FALSE, col.names = TRUE)
+
 
 # 7.3.1 Is KANSL1 differentially expressed--------------------------------------------------
 
@@ -825,8 +826,8 @@ sig_fgseaRes <- fgseaRes[padj < 0.05, ]
   
 # create bar chart of normalised enrichment scores (NES) for top10 hits
 # hidden to avoid overwriting
-png(file = 'plots/FGSEA_KANSL1_mut_vs_WT_padj0.05.png',
-    width = 12, height = 5, units = 'in', res = 1000)
+# png(file = 'plots/FGSEA_KANSL1_mut_vs_WT_padj0.05.png',
+#    width = 12, height = 5, units = 'in', res = 1000)
 
 ggplot(sig_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(NES)))) + 
   geom_bar(stat = "identity", width = 0.8) +
@@ -839,7 +840,7 @@ ggplot(sig_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
-dev.off()
+# dev.off()
 
 # 7.4.1 Looking at Keratinisation -------------------------------------------------------------------
 
@@ -970,3 +971,120 @@ rep_genes <- DEA_summary[DEA_summary$prop_DE > 0.5, ]
 dim(rep_genes)
 
 # this code is now ready for a larger number of runs another time
+
+
+# 9 Investigating keratinisation ----------------------------------
+
+# we'd expect to see more keratinisation in Ba/Sq subclass
+# might KANSL1 have any sort of role in regulating this?
+
+# 9.1 DEA Ba/Sq mutants vs other mutants -------------------------------------------------------
+
+# can run from here instead of 7
+
+# exclude mutants that prob don't do anything
+mut_info <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id, Protein_Change])
+mut_info <- mut_info[order(mut_info$Patient_Id), ] # order Patient IDs alphabetically
+mut_info$PolyPhen <- c('NA', 'NA', 'NA', 'NA', 0.03, 'NA','NA', 'NA', 0.99, 0.99, 'NA', 'NA', 0.24, 'NA', 'NA', 0.73, 'NA', 0.99, 0.91, 'NA', 0.66, 1.00, 0.12, 0.04, 'NA')
+mut_info$SIFT <- c('NA', 'NA', 'NA', 'NA', 0.18, 'NA', 'NA', 'NA', 0.00, 0.00, 'NA', 'NA', 0.16, 'NA', 'NA', 0.01, 'NA', 0.14, 0.01, 'NA', 0.01, 0.00, 0.10, 0.26, 'NA')
+mut_info <- mut_info |> filter(PolyPhen == 'NA' | PolyPhen > 0.446 | SIFT == 'NA' | SIFT < 0.05)
+nrow(mut_info)
+kansl1_muts <- unique(mut_info$Patient_Id)
+kansl1_muts
+rm(mut_info)
+
+# create vector of Ba/Sq patient IDs with kansl1 mutations, and one with all other kansl1 mutants
+basq_patients <- con_class$Patient_ID[con_class$consensusClass == 'Ba/Sq']
+basq_kansl1 <- intersect(kansl1_muts, basq_patients)
+other_kansl1 <- setdiff(kansl1_muts, basq_kansl1)
+
+# run DEA, with other KANSL1 mutatns set as reference
+# create a sample info dataframe for differential expression
+sample_ids <- c(basq_kansl1, other_kansl1)
+class <- c(rep("BaSq", length(basq_kansl1)), 
+              rep("other", length(other_kansl1)))
+sample_info <- data.frame(row.names = sample_ids, class = class)
+rm(class)
+sample_info
+
+# read in mRNA data
+file_id <- '1djprP7DAcEwdUqugIOyQgM_JaYFmtcyl'
+mrna_temp <- tempfile(fileext = ".tsv")
+drive_download(as_id(file_id), path = mrna_temp, overwrite = TRUE)
+counts <- read.table(mrna_temp, check.names = FALSE,
+                     header = TRUE, row.names = 1, sep = '\t')
+unlink(mrna_temp)
+rm(mrna_temp, file_id)
+
+# sort counts object
+colnames(counts) <- substr(colnames(counts), 1, nchar(colnames(counts)) - 4)
+counts <- counts[ , sample_ids]
+counts <- round(counts[complete.cases(counts), ])
+
+# run DEseq
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = sample_info,
+                              design = ~ class)
+
+dds$class <- relevel(dds$class, ref = "other")
+dds <- DESeq(dds)
+dds_results <- results(dds)
+dds_results
+rm(dds)
+
+# change NA values to 0 and add a max adjusted p value
+dds_results$log2FoldChange[is.na(dds_results$log2FoldChange)] <- 0
+dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
+
+# add labels for colouring a volcano plot
+dds_results$DEA <- "NO" 
+dds_results$DEA[dds_results$log2FoldChange > 1 & dds_results$padj < 0.05] <- "UP"
+dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "DOWN"
+
+# how many sig genes are there?
+sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
+sig_genes <- rownames(sig_genes)
+length(sig_genes)
+# 1401 - that's lots! a good thing? 
+
+# add gene symbols as column for easy plot labelling
+dds_results$symbol <- rownames(dds_results)
+
+# create pi values (fold change multiplied by stat significance) for later gene ranking
+dds_results$pi <- dds_results$log2FoldChange * -log10(dds_results$padj)
+dds_results_pi_sorted <- dds_results[order(dds_results$pi),]
+
+# create reduced dataframe of most significantly different genes, for labelling
+# using pi values means you prioritise most biologically significant
+top_genes <- c(head(dds_results_pi_sorted$symbol, 20), tail(dds_results_pi_sorted$symbol, 20))
+genes_to_label <- dds_results[dds_results$symbol %in% top_genes, ]
+
+# create volcano plot
+# png(file = 'plots/DEA_BaSq_KANSL1_muts_vs_others.png',
+#    width = 8, height = 5, units = 'in', res = 1000)
+# hidden to avoid accidental edits
+
+# create a labelled, coloured and annotated volcano plot
+ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
+  geom_point(aes(colour = DEA),
+             show.legend = FALSE) + 
+  scale_colour_manual(values = c("blue", "gray", "red")) +
+  geom_hline(yintercept = -log10(0.05),
+             linetype = "dotted") +
+  geom_vline(xintercept = c(-1,1),
+             linetype = "dotted") + 
+  theme_classic() +
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")) +
+  geom_text_repel(size=2,
+                  data=genes_to_label,
+                  aes(x=log2FoldChange, y=-log10(padj),label=symbol),
+                  max.overlaps = Inf)
+
+# dev.off()
+
+# lots of keratins are up in the Ba/Sq HOWEVER this doesn't yet show much
+# we know that Ba/Sq have lots of keratins regardless so not necessarily a role for KANSL1 here
+
