@@ -1088,3 +1088,200 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
 # lots of keratins are up in the Ba/Sq HOWEVER this doesn't yet show much
 # we know that Ba/Sq have lots of keratins regardless so not necessarily a role for KANSL1 here
 
+# 9.2 DEA no Ba/Sq mutants or WTs -------------------------------------------------------
+
+# can run from here instead of 7
+
+# 9.2.1 Exclusions --------------------------------------------------------
+
+# this is to make sure the changes in keratinisation aren't just because of the fewer KANSL1 mutants 
+# which are Ba/Sq, as observed in the pie charts
+
+# create KANSL1 WT set of IDs - make same exclusions as earlier
+genes_to_extract <- c('KANSL2', 'WRD5', 'HAT1', 'KDM1A')
+IDs_to_remove <- unique(wxs_maf@data[Hugo_Symbol %in% genes_to_extract, Patient_Id])
+kansl1_wt <- setdiff(con_class$Patient_ID, kansl1_muts)
+length(kansl1_wt) # 384
+# remove patient IDs who have mutations in these genes
+kansl1_wt <- setdiff(kansl1_wt, IDs_to_remove)
+length(kansl1_wt) # 374
+# now remove patient IDs for WT Ba/Sq tumours
+basq_patients <- con_class$Patient_ID[con_class$consensusClass == 'Ba/Sq']
+basq_kansl1_wt <- intersect(kansl1_wt, basq_patients)
+kansl1_wt <- setdiff(kansl1_wt, basq_kansl1_wt)
+length(kansl1_wt)
+rm(IDs_to_remove, genes_to_extract)
+
+# create KANSL1 mutant set of IDs - make same exclusions as earlier
+mut_info <- unique(wxs_maf@data[Hugo_Symbol == "KANSL1", Patient_Id, Protein_Change])
+mut_info <- mut_info[order(mut_info$Patient_Id), ] # order Patient IDs alphabetically
+mut_info$PolyPhen <- c('NA', 'NA', 'NA', 'NA', 0.03, 'NA','NA', 'NA', 0.99, 0.99, 'NA', 'NA', 0.24, 'NA', 'NA', 0.73, 'NA', 0.99, 0.91, 'NA', 0.66, 1.00, 0.12, 0.04, 'NA')
+mut_info$SIFT <- c('NA', 'NA', 'NA', 'NA', 0.18, 'NA', 'NA', 'NA', 0.00, 0.00, 'NA', 'NA', 0.16, 'NA', 'NA', 0.01, 'NA', 0.14, 0.01, 'NA', 0.01, 0.00, 0.10, 0.26, 'NA')
+mut_info <- mut_info |> filter(PolyPhen == 'NA' | PolyPhen > 0.446 | SIFT == 'NA' | SIFT < 0.05)
+nrow(mut_info)
+kansl1_muts <- unique(mut_info$Patient_Id)
+kansl1_muts
+rm(mut_info)
+
+# now exclude KANSL1 mutants which are Ba/Sq
+basq_kansl1_muts <- intersect(kansl1_muts, basq_patients)
+length(basq_kansl1_muts)
+kansl1_muts <- setdiff(kansl1_muts, basq_kansl1_muts)
+length(kansl1_muts)
+# tidy up
+rm(basq_kansl1_muts, basq_kansl1_wt, basq_patients)
+
+# 9.2.2 Set Up DEA --------------------------------------------------------
+
+# create a sample info dataframe for differential expression
+sample_ids <- c(kansl1_muts, kansl1_wt)
+genotype <- c(rep("MUT", length(kansl1_muts)), 
+              rep("WT", length(kansl1_wt)))
+sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
+rm(genotype)
+
+# read in mRNA data from online source (AM's google drive)
+file_id <- '1djprP7DAcEwdUqugIOyQgM_JaYFmtcyl'
+mrna_temp <- tempfile(fileext = ".tsv")
+drive_download(as_id(file_id), path = mrna_temp, overwrite = TRUE)
+# load RNAseq count data
+counts <- read.table(mrna_temp, check.names = FALSE,
+                     header = TRUE, row.names = 1, sep = '\t')
+# remove temporary file
+unlink(mrna_temp)
+# tidy up
+rm(mrna_temp, file_id)
+
+# transform counts - remove last 4 characters
+colnames(counts) <- substr(colnames(counts), 1, nchar(colnames(counts)) - 4)
+# sanity check - make sure samples in counts are the same as the samples taken from mutation data
+counts <- counts[ , sample_ids]
+# round the counts and only look at complete cases (i.e. all genes, I think?)
+counts <- round(counts[complete.cases(counts), ])
+
+# 9.2.3 Run DEA -----------------------------------------------------------
+
+# create DESeq2 object
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = sample_info,
+                              design = ~ genotype)
+
+dds$genotype <- relevel(dds$genotype, ref = "WT")
+dds <- DESeq(dds)
+
+# store results
+dds_results <- results(dds)
+dds_results
+
+# tidy up
+rm(dds)
+
+# change NA values to 0 and add a max adjusted p value
+dds_results$log2FoldChange[is.na(dds_results$log2FoldChange)] <- 0
+dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
+
+# add labels for colouring a volcano plot
+dds_results$DEA <- "NO" 
+dds_results$DEA[dds_results$log2FoldChange > 1 & dds_results$padj < 0.05] <- "UP"
+dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "DOWN"
+
+# how many sig genes are there?
+sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
+sig_genes <- rownames(sig_genes)
+length(sig_genes)# 459 
+
+# add gene symbols as column for easy plot labelling
+dds_results$symbol <- rownames(dds_results)
+
+# create pi values (fold change multiplied by stat significance) for later gene ranking
+dds_results$pi <- dds_results$log2FoldChange * -log10(dds_results$padj)
+dds_results_pi_sorted <- dds_results[order(dds_results$pi),]
+
+# create reduced dataframe of most significantly different genes, for labelling
+# using pi values means you prioritise most biologically significant
+top_genes <- c(head(dds_results_pi_sorted$symbol, 20), tail(dds_results_pi_sorted$symbol, 20))
+genes_to_label <- dds_results[dds_results$symbol %in% top_genes, ]
+
+# create volcano plot
+# png(file = 'plots/DEA_kansl1_no_BaSq.png', width = 8, height = 5, units = 'in', res = 1000)
+# hidden to avoid accidental edits
+
+# create a labelled, coloured and annotated volcano plot
+ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
+  geom_point(aes(colour = DEA),
+             show.legend = FALSE) + 
+  scale_colour_manual(values = c("blue", "gray", "red")) +
+  geom_hline(yintercept = -log10(0.05),
+             linetype = "dotted") +
+  geom_vline(xintercept = c(-1,1),
+             linetype = "dotted") + 
+  theme_classic() +
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")) +
+  geom_text_repel(size=2,
+                  data=genes_to_label,
+                  aes(x=log2FoldChange, y=-log10(padj),label=symbol),
+                  max.overlaps = Inf)
+
+# dev.off()
+
+# save data
+dds_df <- as.data.frame(dds_results)
+# write.csv(dds_df, "results/KANSL1_mutvsWT_DEA_results_excl_BaSq.csv", row.names = FALSE, col.names = TRUE)
+
+# 9.2.4 GSEA --------------------------------------------------------------
+
+# load MSigDB gene set
+genesets = gmtPathways("data/c2.all.v2023.2.Hs.symbols.gmt")
+
+# use pi values to rank genes from "most up" to "most down" in the comparison
+prerank <- dds_results[c("symbol", "pi")]
+prerank <- setNames(prerank$pi, prerank$symbol)
+str(prerank)
+
+# run fgsea
+fgseaRes <- fgsea(pathways = genesets, stats = prerank, minSize=15, maxSize = 500)
+
+# store top10 most enriched
+# positive enrichment is (relatively) up in the KANSL1 mutant tumours
+# negative enrichment is (relatively) up in the KANSL1 wildtype tumours
+top10_fgseaRes <- head(fgseaRes[order(pval), ], 10)
+top10_fgseaRes
+
+# isolate those with a padj <0.05
+sig_fgseaRes <- fgseaRes[padj < 0.05, ]
+sig_fgseaRes <- sig_fgseaRes[order(pval), ]
+sig_fgseaRes
+
+# create bar chart of normalised enrichment scores (NES) for top10 hits
+# hidden to avoid overwriting
+# png(file = 'plots/FGSEA_KANSL1_mut_vs_WT_excl_BaSq_padj0.05.png', width = 12, height = 5, units = 'in', res = 1000)
+
+ggplot(sig_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(NES)))) + 
+  geom_bar(stat = "identity", width = 0.8) +
+  labs(title = "GSEA", x = "Normalised Enrichment Score (NES)", y = "Pathway") +
+  theme_minimal(base_size = 16) +
+  scale_fill_manual(values = c("#0754A2", "#B10029"), guide = "none") +
+  scale_y_discrete(labels = function(x) gsub("^HALLMARK_", "", x)) +
+  theme(axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+# dev.off()
+
+# keratinisation geneset still here, as well as a gene set related to metastasis in melanoma
+# this could support the idea that mutating KANSL1 has some sort of role in promoting EMT/metastasis
+
+# extract leading edge genes for each of these genesets
+krt_ledge <- unlist(sig_fgseaRes[pathway == 'REACTOME_KERATINIZATION', leadingEdge])
+met_ledge <- unlist(sig_fgseaRes[pathway == 'WINNEPENNINCKX_MELANOMA_METASTASIS_UP', leadingEdge])
+krt_ledge
+met_ledge
+
+# save data
+gsea_df <- as.data.frame(sig_fgseaRes)
+gsea_df$leadingEdge <- sapply(gsea_df$leadingEdge, paste, collapse = ",")
+write.csv(gsea_df, "results/FGSEA_KANSL1_muts_vs_WT_excl_BaSq.csv", row.names = FALSE)
