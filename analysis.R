@@ -1285,3 +1285,55 @@ met_ledge
 gsea_df <- as.data.frame(sig_fgseaRes)
 gsea_df$leadingEdge <- sapply(gsea_df$leadingEdge, paste, collapse = ",")
 write.csv(gsea_df, "results/FGSEA_KANSL1_muts_vs_WT_excl_BaSq.csv", row.names = FALSE)
+
+# 9.3 Clinical Stage ------------------------------------------------------
+
+# idea: mutations in KANSL1 might facilitate dedifferentiation, EMT and metastasis
+# are KANSL1 mutants enriched for stage IV cancers?
+# want to look at luminal cancers only (no Ba/Sq) 
+# use exclusions from 9.2.1
+
+clinical_metadata <- read.table("data/TCGA-BLCA-clinical-metadata.tsv", 
+                            header = TRUE, sep = "\t")
+summary(con_class)
+
+# add Patient ID column with 01A removed from each of the IDs
+clinical_metadata$Patient_ID <- substr(clinical_metadata$cases.submitter_id, 1, 12)
+
+# what are the pathological stages for the KANSL1 mutants we extracted?
+path_stage_kansl1_mut <- clinical_metadata[clinical_metadata$Patient_ID %in% kansl1_muts, ] |> 
+  select('Patient_ID', 'diagnoses.ajcc_pathologic_stage')
+
+# add column saying TRUE/FALSE for whether each cancer is stage IV
+path_stage_kansl1_mut$StageIV <- FALSE
+path_stage_kansl1_mut$StageIV <- grepl("Stage IV", path_stage_kansl1_mut$diagnoses.ajcc_pathologic_stage) # grepl() returns true if a thing is inside another thing
+head(path_stage_kansl1_mut)
+
+# what are the pathological stages for the KANSL1 WTs we extracted, after Ba/Sq tumours
+path_stage_kansl1_wt <- clinical_metadata[clinical_metadata$Patient_ID %in% kansl1_wt, ] |> 
+  select('Patient_ID', 'diagnoses.ajcc_pathologic_stage')
+
+# add column saying TRUE/FALSE for whether each cancer is stage IV
+path_stage_kansl1_wt$StageIV <- FALSE
+path_stage_kansl1_wt$StageIV <- grepl("Stage IV", path_stage_kansl1_wt$diagnoses.ajcc_pathologic_stage) # grepl() returns true if a thing is inside another thing
+head(path_stage_kansl1_wt)
+
+# look at stages using pie charts
+
+# set up plot matrix
+par(mfrow = c(1,2))
+
+# pie chart of entire cohort
+StageIV_counts_wt <- table(path_stage_kansl1_wt$StageIV)
+pie(StageIV_counts_wt,
+    labels = names(StageIV_counts_wt),
+    main = 'Stage IV counts of entire BLCA TCGA cohort excl Ba/Sq')
+
+# pie chart of KANSL1 mutants
+StageIV_counts_kansl1_mut <- table(path_stage_kansl1_mut$StageIV)
+pie(StageIV_counts_kansl1_mut,
+    labels = names(StageIV_counts_kansl1_mut),
+    main = 'Stage IV counts of KANSL1 mutants')
+
+# no, KANSL1 mutants are not enriched for stage IV tumours
+# observationally, there is the same proportion of Stage IV tumours
