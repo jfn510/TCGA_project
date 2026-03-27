@@ -1203,11 +1203,11 @@ top_genes <- c(head(dds_results_pi_sorted$symbol, 20), tail(dds_results_pi_sorte
 genes_to_label <- dds_results[dds_results$symbol %in% top_genes, ]
 
 # create volcano plot
-# png(file = 'plots/DEA_kansl1_no_BaSq.png', width = 8, height = 5, units = 'in', res = 1000)
+# png(file = 'plots/DEA_kansl1_no_BaSq.png', width = 8, height = 6, units = 'in', res = 1000)
 # hidden to avoid accidental edits
 
 # create a labelled, coloured and annotated volcano plot
-ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
+# ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) + 
   geom_point(aes(colour = DEA),
              show.legend = FALSE) + 
   scale_colour_manual(values = c("blue", "gray", "red")) +
@@ -1228,7 +1228,7 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
 # dev.off()
 
 # save data
-# dds_df <- as.data.frame(dds_results)
+dds_df <- as.data.frame(dds_results)
 # write.csv(dds_df, "results/KANSL1_mutvsWT_DEA_results_excl_BaSq.csv", row.names = FALSE, col.names = TRUE)
 
 # 9.2.4 GSEA --------------------------------------------------------------
@@ -1273,15 +1273,15 @@ ggplot(sig_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(
 # dev.off()
 
 # plot genesets of interest
-png(file = 'plots/EP_melanoma_metastasis_up_no_BaSq.png', width = 6, height = 6, units = 'in', res = 1000)
+#png(file = 'plots/EP_melanoma_metastasis_up_no_BaSq.png', width = 6, height = 6, units = 'in', res = 1000)
 plotEnrichment(genesets[["WINNEPENNINCKX_MELANOMA_METASTASIS_UP"]], prerank) +
   labs(title = "MELANOMA METASTASIS")
-dev.off()
+#dev.off()
 
-png(file = 'plots/EP_keratinization_no_BaSq.png', width = 6, height = 6, units = 'in', res = 1000)
+#png(file = 'plots/EP_keratinization_no_BaSq.png', width = 6, height = 6, units = 'in', res = 1000)
 plotEnrichment(genesets[["REACTOME_KERATINIZATION"]], prerank) +
   labs(title = "KERATINISATION")
-dev.off()
+#dev.off()
 
 # keratinisation geneset still here, as well as a gene set related to metastasis in melanoma
 # this could support the idea that mutating KANSL1 has some sort of role in promoting EMT/metastasis
@@ -1291,13 +1291,136 @@ krt_ledge <- unlist(sig_fgseaRes[pathway == 'REACTOME_KERATINIZATION', leadingEd
 met_ledge <- unlist(sig_fgseaRes[pathway == 'WINNEPENNINCKX_MELANOMA_METASTASIS_UP', leadingEdge])
 krt_ledge
 met_ledge
+rm(krt_ledge, met_ledge)
 
 # save data
-gsea_df <- as.data.frame(sig_fgseaRes)
-gsea_df$leadingEdge <- sapply(gsea_df$leadingEdge, paste, collapse = ",")
-write.csv(gsea_df, "results/FGSEA_KANSL1_muts_vs_WT_excl_BaSq.csv", row.names = FALSE)
+#gsea_df <- as.data.frame(sig_fgseaRes)
+#gsea_df$leadingEdge <- sapply(gsea_df$leadingEdge, paste, collapse = ",")
+#write.csv(gsea_df, "results/FGSEA_KANSL1_muts_vs_WT_excl_BaSq.csv", row.names = FALSE)
 
-# 9.3 Clinical Stage ------------------------------------------------------
+# 9.3 Genes of Interest ---------------------------------------------------
+
+# I want to communicate all interesting genes in one simple plot
+
+# state which genes you want to see plotted
+genes_of_interest <- c('KRT6C', 'KRT24', 'KRT31', 
+                      'GJB1', 'GJD2',
+                      'CLDN3', 'CLDN4', 'CLDN8', 'CLDN9',
+                      'GATA3', 'PPARG', 'ELF3', 'FOXA1',
+                      'ZEB1', 'ZEB2', 'TWIST1', 'TWIST2',
+                      'VIM', 'CDH1', 'CDH2',
+                      'MMP2', 'MMP3', 'MMP16')
+
+# create subset of dataframe to plot
+dds_goi <- dds_df[genes_of_interest, ]
+
+# add a column to group genes
+dds_goi$group <- 'Other'
+
+# establish some gene groups
+claudins <- c('CLDN1', 'CLDN10', 'CLDN10-AS1', 'CLDN11', 'CLDN12', 'CLDN14', 'CLDN15',
+  'CLDN16', 'CLDN17', 'CLDN18', 'CLDN19', 'CLDN2', 'CLDN20', 'CLDN22',
+  'CLDN23', 'CLDN24', 'CLDN25', 'CLDN3', 'CLDN34', 'CLDN4', 'CLDN5',
+  'CLDN6', 'CLDN7', 'CLDN7P1', 'CLDN8', 'CLDN9', 'CLDND1', 'CLDND2')
+
+connexins <- c('GJA1', 'GJA10', 'GJA1P1', 'GJA3', 'GJA4', 'GJA5', 'GJA6P', 'GJA8',
+  'GJA9', 'GJB1', 'GJB2', 'GJB3', 'GJB4', 'GJB5', 'GJB6', 'GJB7',
+  'GJC1', 'GJC2', 'GJC3', 'GJD2', 'GJD2-DT', 'GJD3', 'GJD3-AS1',
+  'GJD4', 'GJE1')
+
+keratins <- c(
+  'KRT1','KRT10','KRT10-AS1','KRT12','KRT125P','KRT126P','KRT127P','KRT128P',
+  'KRT13','KRT14','KRT15','KRT16','KRT16P1','KRT16P2','KRT16P3','KRT16P4',
+  'KRT16P5','KRT16P6','KRT17','KRT17P1','KRT17P2','KRT17P3','KRT17P4',
+  'KRT17P5','KRT17P6','KRT17P7','KRT17P8','KRT18','KRT18P1','KRT18P10',
+  'KRT18P11','KRT18P12','KRT18P13','KRT18P14','KRT18P15','KRT18P16',
+  'KRT18P17','KRT18P18','KRT18P19','KRT18P2','KRT18P20','KRT18P21',
+  'KRT18P22','KRT18P23','KRT18P24','KRT18P25','KRT18P26','KRT18P27',
+  'KRT18P28','KRT18P29','KRT18P3','KRT18P31','KRT18P32','KRT18P33',
+  'KRT18P34','KRT18P35','KRT18P36','KRT18P37','KRT18P38','KRT18P39',
+  'KRT18P4','KRT18P40','KRT18P41','KRT18P42','KRT18P43','KRT18P44',
+  'KRT18P45','KRT18P46','KRT18P47','KRT18P48','KRT18P49','KRT18P5',
+  'KRT18P50','KRT18P51','KRT18P52','KRT18P53','KRT18P54','KRT18P55',
+  'KRT18P56','KRT18P57','KRT18P58','KRT18P59','KRT18P6','KRT18P60',
+  'KRT18P61','KRT18P62','KRT18P63','KRT18P64','KRT18P65','KRT18P66',
+  'KRT18P67','KRT18P68','KRT18P7','KRT18P8','KRT18P9','KRT19','KRT19P1',
+  'KRT19P2','KRT19P3','KRT19P4','KRT19P6','KRT2','KRT20','KRT222',
+  'KRT223P','KRT224P','KRT23','KRT24','KRT25','KRT26','KRT27','KRT28',
+  'KRT3','KRT31','KRT32','KRT33A','KRT33B','KRT34','KRT35','KRT36',
+  'KRT37','KRT38','KRT39','KRT4','KRT40','KRT41P','KRT42P','KRT43P',
+  'KRT5','KRT6A','KRT6B','KRT6C','KRT7','KRT7-AS','KRT71','KRT72',
+  'KRT73','KRT73-AS1','KRT74','KRT75','KRT76','KRT77','KRT78','KRT79',
+  'KRT8','KRT80','KRT81','KRT82','KRT83','KRT84','KRT85','KRT86',
+  'KRT87P','KRT88P','KRT89P','KRT8P1','KRT8P10','KRT8P11','KRT8P12',
+  'KRT8P13','KRT8P14','KRT8P15','KRT8P17','KRT8P18','KRT8P19','KRT8P2',
+  'KRT8P20','KRT8P21','KRT8P22','KRT8P23','KRT8P24','KRT8P25','KRT8P26',
+  'KRT8P27','KRT8P28','KRT8P29','KRT8P3','KRT8P30','KRT8P31','KRT8P32',
+  'KRT8P33','KRT8P34','KRT8P35','KRT8P36','KRT8P37','KRT8P38','KRT8P39',
+  'KRT8P4','KRT8P40','KRT8P41','KRT8P42','KRT8P43','KRT8P44','KRT8P45',
+  'KRT8P46','KRT8P47','KRT8P48','KRT8P49','KRT8P5','KRT8P50','KRT8P51',
+  'KRT8P52','KRT8P6','KRT8P7','KRT8P8','KRT8P9','KRT9','KRT90P')
+
+mmps <- c('MMP1', 'MMP10', 'MMP11', 'MMP12', 'MMP13', 'MMP14', 'MMP15',
+  'MMP16', 'MMP17', 'MMP19', 'MMP2', 'MMP2-AS1', 'MMP20',
+  'MMP20-AS1', 'MMP21', 'MMP23A', 'MMP23B', 'MMP24', 'MMP24OS',
+  'MMP25', 'MMP25-AS1', 'MMP26', 'MMP27', 'MMP28', 'MMP3',
+  'MMP7', 'MMP8', 'MMP9')
+
+EMT_TFs <- c('ZEB1', 'ZEB2', 'SNAI1', 'SNAI2', 'TWIST1', 'TWIST2')
+
+EMT_downstream <- c('VIM', 'FN1', 'CDH1', 'CDH2', 'CDH3', 'CDH10')
+
+luminal_TFs <- c('GATA3', 'PPARG', 'ELF3', 'FOXA1')
+  
+dds_goi$group[dds_goi$symbol %in% claudins] <- 'Claudins'
+dds_goi$group[dds_goi$symbol %in% connexins] <- 'Connexins'
+dds_goi$group[dds_goi$symbol %in% keratins] <- 'Keratins'
+dds_goi$group[dds_goi$symbol %in% mmps] <- 'MMPs'
+dds_goi$group[dds_goi$symbol %in% EMT_TFs] <- 'EMT TFs'
+dds_goi$group[dds_goi$symbol %in% EMT_downstream] <- 'EMT Downstream'
+dds_goi$group[dds_goi$symbol %in% luminal_TFs] <- 'Luminal TFs'
+
+# plot lfcs
+png(file = "plots/goi_no_BaSq.png", width = 10, height = 4, units = 'in', res = 1000)
+ggplot(dds_goi, aes(x = symbol, y = log2FoldChange)) +
+  geom_hline(yintercept = c(-1, 1),
+             linetype = "dashed") +
+  geom_col(colour = 'black',
+           aes(fill = group), 
+           show.legend = FALSE,
+           width = .8) +
+  scale_fill_manual(values = c('#bbdddd', '#cceecc', '#eeccee', '#ccbbee', '#88bb88', '#aaccee', '#cc8888')) +
+  geom_text(fontface = "bold",
+            aes(label = ifelse(padj < 0.01, "**",
+                               ifelse(padj < 0.05, "*", "")),
+                y = ifelse(log2FoldChange > 0,
+                   log2FoldChange + 0.3,
+                   log2FoldChange - 0.3))) +
+  theme_minimal() +
+  scale_x_discrete(limits = dds_goi$symbol,
+                   guide = guide_axis(angle = 45),
+                   name = "") +
+  scale_y_continuous(name = expression(Log[2]~' Fold Change')) +
+  coord_cartesian(ylim = c(-5, 5)) +
+  annotate("text", x = 2, y = 4, label = "Keratins", fontface = "bold") +
+  annotate("text", x = 4.5, y = 4, label = "Connexins", fontface = "bold") +
+  annotate("text", x = 7.5, y = 4, label = "Claudins", fontface = "bold") +
+  annotate("text", x = 11.5, y = 4, label = "Luminal TFs", fontface = "bold") +
+  annotate("text", x = 15.5, y = 4, label = "EMT TFs", fontface = "bold") +
+  annotate("text", x = 19, y = 4, label = "EMT Downstream", fontface = "bold") +
+  annotate("text", x = 22, y = 4, label = "MMPs", fontface = "bold")
+#  geom_segment(x = 3.5, y = -5, yend = 2.5) +
+#  geom_segment(x = 5.5, y = -5, yend = 2.5) +
+#  geom_segment(x = 9.5, y = -5, yend = 2.5) +
+#  geom_segment(x = 13.5, y = -5, yend = 2.5) +
+#  geom_segment(x = 17.5, y = -5, yend = 2.5) +
+#  geom_segment(x = 20.5, y = -5, yend = 2.5)
+
+# geom_vline(xintercept = c(3.5, 5.5, 9.5, 13.5, 17.5, 20.5))
+
+dev.off()
+
+# 9.4 Clinical Stage ------------------------------------------------------
 
 # idea: mutations in KANSL1 might facilitate dedifferentiation, EMT and metastasis
 # are KANSL1 mutants enriched for stage IV cancers?
