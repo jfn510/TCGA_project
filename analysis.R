@@ -1188,7 +1188,7 @@ dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "D
 # how many sig genes are there?
 sig_genes <- dds_results[which(dds_results$DEA %in% c("UP", "DOWN")), ]
 sig_genes <- rownames(sig_genes)
-length(sig_genes)# 459 
+length(sig_genes)# 386 
 
 # add gene symbols as column for easy plot labelling
 dds_results$symbol <- rownames(dds_results)
@@ -1228,7 +1228,7 @@ ggplot(dds_results, aes(x=log2FoldChange, y=-log10(padj))) +
 # dev.off()
 
 # save data
-dds_df <- as.data.frame(dds_results)
+# dds_df <- as.data.frame(dds_results)
 # write.csv(dds_df, "results/KANSL1_mutvsWT_DEA_results_excl_BaSq.csv", row.names = FALSE, col.names = TRUE)
 
 # 9.2.4 GSEA --------------------------------------------------------------
@@ -1271,6 +1271,17 @@ ggplot(sig_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(
         panel.grid.minor = element_blank())
 
 # dev.off()
+
+# plot genesets of interest
+png(file = 'plots/EP_melanoma_metastasis_up_no_BaSq.png', width = 6, height = 6, units = 'in', res = 1000)
+plotEnrichment(genesets[["WINNEPENNINCKX_MELANOMA_METASTASIS_UP"]], prerank) +
+  labs(title = "MELANOMA METASTASIS")
+dev.off()
+
+png(file = 'plots/EP_keratinization_no_BaSq.png', width = 6, height = 6, units = 'in', res = 1000)
+plotEnrichment(genesets[["REACTOME_KERATINIZATION"]], prerank) +
+  labs(title = "KERATINISATION")
+dev.off()
 
 # keratinisation geneset still here, as well as a gene set related to metastasis in melanoma
 # this could support the idea that mutating KANSL1 has some sort of role in promoting EMT/metastasis
