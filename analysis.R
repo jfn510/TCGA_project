@@ -1109,7 +1109,7 @@ length(kansl1_wt) # 374
 basq_patients <- con_class$Patient_ID[con_class$consensusClass == 'Ba/Sq']
 basq_kansl1_wt <- intersect(kansl1_wt, basq_patients)
 kansl1_wt <- setdiff(kansl1_wt, basq_kansl1_wt)
-length(kansl1_wt)
+length(kansl1_wt) # 227
 rm(IDs_to_remove, genes_to_extract)
 
 # create KANSL1 mutant set of IDs - make same exclusions as earlier
@@ -1127,7 +1127,7 @@ rm(mut_info)
 basq_kansl1_muts <- intersect(kansl1_muts, basq_patients)
 length(basq_kansl1_muts)
 kansl1_muts <- setdiff(kansl1_muts, basq_kansl1_muts)
-length(kansl1_muts)
+length(kansl1_muts) # 15
 # tidy up
 rm(basq_kansl1_muts, basq_kansl1_wt, basq_patients)
 
@@ -1420,7 +1420,108 @@ ggplot(dds_goi, aes(x = symbol, y = log2FoldChange)) +
 
 dev.off()
 
-# 9.4 Clinical Stage ------------------------------------------------------
+
+# 9.4 Validating genes of interest ----------------------------------------
+
+# validating the genes we're interested in by running 15vs15 DEA
+# random set of WTs each time
+
+# set up matrix of WT selection to run
+NTIMES_TO_RUN <- 100
+NSAMPLES_TO_RUN <- 15
+wt_mat <- t(replicate(NTIMES_TO_RUN, sample(kansl1_wt, NSAMPLES_TO_RUN, replace = FALSE)))
+
+DESeq_ntimes <- function(wt, mutants, counts) {
+  
+  sample_ids <- c(unique(mutants), unique(wt))
+  genotype <- c(rep("MUT", length(mutants)), 
+                rep("WT", length(wt)))
+  sample_info <- data.frame(row.names = sample_ids, genotype = genotype)
+  
+  # subset counts to only include the samples in sample info
+  counts_subset <- counts[, sample_ids]
+  counts_subset <- round(counts_subset)
+  
+  # create DESeq2 object
+  dds <- DESeqDataSetFromMatrix(countData = counts_subset,
+                                colData = sample_info,
+                                design = ~ genotype)
+  dds$genotype <- relevel(dds$genotype, ref = "WT")
+  
+  # run DESeq
+  dds <- DESeq(dds)
+  # store results
+  dds_results <- results(dds)
+  
+  # change NA values to 0 and add a max adjusted p value
+  dds_results$log2FoldChange[is.na(dds_results$log2FoldChange)] <- 0
+  dds_results$padj[is.na(dds_results$padj) | dds_results$padj > 0.99] <- 0.99
+  
+  # add UP/DOWN regulated labels
+  dds_results$DEA <- "NO" 
+  dds_results$DEA[dds_results$log2FoldChange > 1 & dds_results$padj < 0.05] <- "UP"
+  dds_results$DEA[dds_results$log2FoldChange < -1 & dds_results$padj < 0.05] <- "DOWN"
+  
+  # return results
+  return(as.data.frame(dds_results))
+  
+}
+
+# create emptor vector (type = list) to store results in 
+DEA_results <- vector("list", NTIMES_TO_RUN)
+
+for (i in seq_len(NTIMES_TO_RUN)) {
+  
+  # select WT samples for this run
+  wt_samples <- wt_mat[i, ]
+  
+  # run DESeq for this run and store run results in res
+  res <- DESeq_ntimes(wt = wt_samples, mutants = kansl1_muts, counts = counts)
+  
+  # add gene name in a column which isn't the row name
+  # done here to avoid naming complications
+  res$gene <- rownames(res)
+  
+  # add column saying which run this is
+  res$run <- i
+  
+  # add run results to overall results vector
+  DEA_results[[i]] <- res
+  
+}
+
+# combine the DEA results by row (gene)
+DEA_combined <- do.call(rbind, DEA_results)
+
+# tidy up - DEA_results is huge
+# rm(DEA_results)
+
+# create summary table
+DEA_summary <- DEA_combined |> 
+  group_by(gene) |> 
+  summarise(n_UP = sum(DEA == "UP"),
+            n_DOWN = sum(DEA == "DOWN"),
+            prop_UP = n_UP / NTIMES_TO_RUN,
+            prop_DOWN = n_DOWN / NTIMES_TO_RUN,
+            prop_DE = (n_UP + n_DOWN) / NTIMES_TO_RUN,
+            mean_log2FC = mean(log2FoldChange),
+            median_log2FC = median(log2FoldChange),
+            sd_log2FC = sd(log2FoldChange),
+            mean_padj = mean(padj),
+            median_padj = median(padj),
+            sd_padj = sd(padj))
+
+# how does this look
+head(DEA_summary, n = 10)
+
+# extract reproducible genes which are significant > half the time
+rep_genes <- DEA_summary[DEA_summary$prop_DE > 0.2, ]
+dim(rep_genes)
+
+# save results
+write.csv(DEA_summary, "results/KANSL1_mutvsWT_DEA_no_BaSq_100x.csv", row.names = FALSE, col.names = TRUE)
+
+# 9.5 Clinical Stage ------------------------------------------------------
 
 # idea: mutations in KANSL1 might facilitate dedifferentiation, EMT and metastasis
 # are KANSL1 mutants enriched for stage IV cancers?
