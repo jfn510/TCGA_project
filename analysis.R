@@ -1519,6 +1519,7 @@ rep_genes <- DEA_summary[DEA_summary$prop_DE > 0.2, ]
 dim(rep_genes)
 
 # save results
+write.csv(DEA_combined, "results/KANSL1_mutvsWT_DEA_no_BaSq_100x_results.csv", row.names = FALSE, col.names = TRUE)
 write.csv(DEA_summary, "results/KANSL1_mutvsWT_DEA_no_BaSq_100x.csv", row.names = FALSE, col.names = TRUE)
 
 # 9.5 Clinical Stage ------------------------------------------------------
