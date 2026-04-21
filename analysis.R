@@ -71,13 +71,13 @@ par(mfrow = c(1,2))
 class_counts_all <- table(con_class$consensusClass)
 pie(class_counts_all,
     labels = names(class_counts_all),
-    main = 'Consensus Classifiers of TCGA cohort')
+    main = 'Entire TCGA MIBC cohort')
 
 # pie chart of KANSL1 mutants
 class_counts_kansl1 <- table(con_class_kansl1$consensusClass)
 pie(class_counts_kansl1,
     labels = names(class_counts_kansl1),
-    main = 'Consensus Classifiers of KANSL1 mutants')
+    main = 'KANSL1 mutants')
 
 dev.off()
 
@@ -841,6 +841,59 @@ ggplot(sig_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(
         panel.grid.minor = element_blank())
 
 # dev.off()
+
+# recreate plot but just for genesets which are interesting
+int_genesets <- c('REACTOME_CHROMATIN_MODIFYING_ENZYMES',
+                  'REACTOME_KERATINIZATION',
+                  'REACTOME_EPIGENETIC_REGULATION_OF_GENE_EXPRESSION',
+                  'REACTOME_HATS_ACETYLATE_HISTONES')
+int_fgseaRes <- sig_fgseaRes[pathway %in% int_genesets, ]
+
+png(file = 'plots/FGSEA_KANSL1_mut_vs_WT_padj0.05_int1.png',
+    width = 12, height = 4, units = 'in', res = 1000)
+ggplot(int_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(NES)))) + 
+  geom_bar(stat = "identity", width = 0.8) +
+  labs(title = "GSEA", x = "Normalised Enrichment Score (NES)", y = "Pathway") +
+  theme_minimal(base_size = 16) +
+  scale_fill_manual(values = c("#0754A2", "#B10029"), guide = "none") +
+  scale_y_discrete(labels = function(x) gsub("^HALLMARK_", "", x)) +
+  theme(axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+dev.off()
+
+# add the CDH1 targets geneset
+int_genesets <- c('REACTOME_CHROMATIN_MODIFYING_ENZYMES',
+                  'REACTOME_KERATINIZATION',
+                  'REACTOME_EPIGENETIC_REGULATION_OF_GENE_EXPRESSION',
+                  'REACTOME_HATS_ACETYLATE_HISTONES', 
+                  'ONDER_CDH1_TARGETS_2_DN')
+int_fgseaRes <- sig_fgseaRes[pathway %in% int_genesets, ]
+
+png(file = 'plots/FGSEA_KANSL1_mut_vs_WT_padj0.05_int2.png',
+    width = 12, height = 4, units = 'in', res = 1000)
+ggplot(int_fgseaRes, aes(x = NES, y=reorder(pathway, -pval), fill = factor(sign(NES)))) + 
+  geom_bar(stat = "identity", width = 0.8) +
+  labs(title = "GSEA", x = "Normalised Enrichment Score (NES)", y = "Pathway") +
+  theme_minimal(base_size = 16) +
+  scale_fill_manual(values = c("#0754A2", "#B10029"), guide = "none") +
+  scale_y_discrete(labels = function(x) gsub("^HALLMARK_", "", x)) +
+  theme(axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+dev.off()
+
+gsea_df <- as.data.frame(sig_fgseaRes)
+gsea_df$leadingEdge <- sapply(gsea_df$leadingEdge, paste, collapse = ",")
+# write.csv(gsea_df, "results/FGSEA_KANSL1_muts_vs_WT.csv", row.names = FALSE)
+
+
+
+
 
 # 7.4.1 Looking at Keratinisation -------------------------------------------------------------------
 
