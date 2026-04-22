@@ -892,9 +892,6 @@ gsea_df$leadingEdge <- sapply(gsea_df$leadingEdge, paste, collapse = ",")
 # write.csv(gsea_df, "results/FGSEA_KANSL1_muts_vs_WT.csv", row.names = FALSE)
 
 
-
-
-
 # 7.4.1 Looking at Keratinisation -------------------------------------------------------------------
 
 # what are the leading edge genes for the keratinisation gene set?

@@ -1,3 +1,31 @@
-# Role of KANSL1 mutations in Bladder Cancer
+# KANSL1 investigator
 ---
-This is my final year dissertation project. I am investigating the role of KANSL1 mutations in bladder cancer by analysing multiomic TCGA data.
+This code forms part of my final-year BSc project. 
+
+It is an investigation into KANSL1 mutations The Cancer Genome Atlas (TCGA) Muscle-Invasive Bladder Cancer (MIBC) Cohort.
+
+---
+## Useful Links
+
+[Project Brief](https://asmasonomics.github.io/courses/BSc_dissertation_2025 "Dr Andrew Mason's Project Brief")
+[Cleaned Data - Google Drive](https://drive.google.com/drive/folders/1inlKf9uXYdE9skNrJz5yBoElZmteu8CG "Cleaned Data - Google Drive")
+[cBioPortal - TCGA MIBC Dashboard](https://www.cbioportal.org/study/summary?id=blca_tcga_pub_2017 "TCGA MIBC cohort dashboard - cBioPortal")
+[Robertson et al. (2017), Introduction to TCGA MIBC cohort](https://www.sciencedirect.com/science/article/pii/S0092867417310565?via%3Dihub "MIBC Cohort Introduction")
+
+---
+## Contact Information
+
+This project was written by Caleb. *Email address:* jfn510@york.ac.uk
+It is not maintained.
+
+---
+## Installation Instructions
+
+Not _really_ anything to know about. You need RStudio. I can't remember how I installed the packages. You probs need to use `Bioconductor::Install`, and not `install.packages()`.
+
+---
+## User Guide
+
+This isn't really an adaptable piece of software unfortunately. It is a very long and convoluted way of seeing how I conducted my analysis. 
+
+> Caleb has enjoyed carrying out this project but is ready for it to be over. It's the writing up that scares me.
