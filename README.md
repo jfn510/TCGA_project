@@ -1,8 +1,8 @@
-# KANSL1 investigator
+# _KANSL1_: A Potential Suppressor of Metastasis in Muscle-Invasive Bladder Cancer
 ---
-This code forms part of my final-year BSc project. 
+This code includes the analysis for my final-year BSc project. 
 
-It is an investigation into KANSL1 mutations The Cancer Genome Atlas (TCGA) Muscle-Invasive Bladder Cancer (MIBC) Cohort.
+It is an investigation into _KANSL1_ mutations The Cancer Genome Atlas (TCGA) Muscle-Invasive Bladder Cancer (MIBC) Cohort.
 
 ---
 ## Useful Links
