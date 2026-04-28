@@ -21,7 +21,17 @@ It is not maintained.
 ---
 ## Installation Instructions
 
-Not _really_ anything to know about. You need RStudio. I can't remember how I installed the packages. You probs need to use `Bioconductor::Install`, and not `install.packages()`.
+Prerequisite software: RStudio: [Download RStudio Desktop Here](https://posit.co/download/rstudio-desktop).
+The following packages should be installed:
+
+```
+install.packages(c("tidyverse", "data.table", "googledrive", "ggrepel"))
+
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(c("DESeq2", "fgsea", "maftools", "BiocParallel"))
+
+```
 
 ---
 ## User Guide
