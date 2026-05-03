@@ -81,8 +81,55 @@ pie(class_counts_kansl1,
 
 dev.off()
 
+# pie charts aren't the best way of representing this data
+# let's make a dot plot instead
+class_counts_all <- as.data.frame(table(con_class$consensusClass))
+class_counts_kansl1 <- as.data.frame(table(con_class_kansl1$consensusClass))
+
+# add proportions
+class_counts_all$prop <- class_counts_all$Freq/nrow(con_class)
+class_counts_kansl1$prop <- class_counts_kansl1$Freq/nrow(con_class_kansl1)
+
+# label whether this is all or the kansl1 mutants
+class_counts_all$group <- 'All'
+class_counts_kansl1$group <- 'KANSL1-MT'
+
+# merge dataframes
+class_counts <- rbind(class_counts_all, class_counts_kansl1)
+
+# change proportion to percentage
+class_counts$perc <- class_counts$prop*100
+
+# 3.2 create dot plot -----------------------------------------------------
+
+# plot in dotplot
+# Basic dot plot
+# this is not a good piece of code lol
+
+png(file = 'plots/class_dotplot.png',
+    width = 5, height = 4, units = 'in', res = 1000)
+
+ggplot(class_counts, aes(x = Var1, y = perc, shape = group)) + 
+  geom_jitter(width = 0, height = 0, size = 2) +
+  coord_flip() +
+  theme_minimal() +
+  scale_y_continuous(name = "% Group") +
+  scale_x_discrete(name = "Subtype") +
+  labs(shape = "Group") +
+  geom_segment(aes(x = 1.25, xend = 1.25, y = 20.833333, yend = 37.5)) +
+  annotate("text", x = 1.4, y = (37.5+20.833333)/2, label = "n.s.") +
+  annotate("text", x = 2.3, y = (8.823529+4.166667)/2, label = "n.s.")  +
+  geom_segment(aes(x = 3.25, xend = 3.25, y = 34.558824, yend = 50.000000)) +
+  annotate("text", x = 3.4, y = (34.558824+50.000000)/2, label = "n.s.") +
+  annotate("text", x = 5.3, y = (1.225490+4.166667)/2, label = "n.s.") +
+  annotate("text", x = 6.3, y = (9.558824+12.500000)/2, label = "n.s.")
+
+dev.off()
+
 # most wedges are unchanged in size
 # LumP wedge is a little larger in KANSL1 mutants, and Ba/Sq wedge a little smaller
+
+# 3.3 Test for classifier enrichment ------------------------------------------
 
 # chi-squared to test if KANSL1 mutants are more likely to be LumP than expected
 

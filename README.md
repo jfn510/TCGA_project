@@ -44,7 +44,8 @@ BiocManager::install(c("DESeq2", "fgsea", "maftools", "BiocParallel"))
 
 
 ---
-## The author's favourite joke
+## That's the end of this README!
+Thanks for reading to the end - let me end with one of the author's favourite jokes:
 > "How do you turn a duck into a soul singer?
 > 
 > Put it in the oven until its bill withers."
