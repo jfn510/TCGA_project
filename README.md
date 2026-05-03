@@ -2,7 +2,7 @@
 ---
 This code includes the analysis for my final-year BSc project. <br> 
 
-It is an investigation into _KANSL1_ mutations The Cancer Genome Atlas (TCGA) Muscle-Invasive Bladder Cancer (MIBC) Cohort. <br>
+It is an investigation into _KANSL1_ mutations in The Cancer Genome Atlas (TCGA) Muscle-Invasive Bladder Cancer (MIBC) Cohort. <br>
 
 ---
 ## Useful Links
@@ -33,8 +33,15 @@ BiocManager::install(c("DESeq2", "fgsea", "maftools", "BiocParallel"))
 ```
 
 ---
-## User Guide
+## Contents of notable files
+| File | Description|
+| -----|------------|
+| analysis.R | main analysis code|
+|
 
-This isn't really an adaptable piece of software unfortunately. It is a very long and convoluted way of seeing how I conducted my analysis. 
 
-> Caleb has enjoyed carrying out this project but is ready for it to be over. It's the writing up that scares me.
+---
+## The author's favourite joke
+> How do you turn a duck into a soul singer?
+>
+> Put it in the oven until its Bill Withers.
