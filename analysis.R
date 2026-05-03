@@ -91,8 +91,8 @@ class_counts_all$prop <- class_counts_all$Freq/nrow(con_class)
 class_counts_kansl1$prop <- class_counts_kansl1$Freq/nrow(con_class_kansl1)
 
 # label whether this is all or the kansl1 mutants
-class_counts_all$group <- 'All'
-class_counts_kansl1$group <- 'KANSL1-MT'
+class_counts_all$group <- 'All Tumours'
+class_counts_kansl1$group <- 'KANSL1-MTs'
 
 # merge dataframes
 class_counts <- rbind(class_counts_all, class_counts_kansl1)
@@ -106,8 +106,8 @@ class_counts$perc <- class_counts$prop*100
 # Basic dot plot
 # this is not a good piece of code lol
 
-png(file = 'plots/class_dotplot.png',
-    width = 5, height = 4, units = 'in', res = 1000)
+png(file = 'plots/class_dotplot_53.png',
+    width = 5, height = 3, units = 'in', res = 1000)
 
 ggplot(class_counts, aes(x = Var1, y = perc, shape = group)) + 
   geom_jitter(width = 0, height = 0, size = 2) +
@@ -115,6 +115,8 @@ ggplot(class_counts, aes(x = Var1, y = perc, shape = group)) +
   theme_minimal() +
   scale_y_continuous(name = "% Group") +
   scale_x_discrete(name = "Subtype") +
+  scale_shape_manual(name = "Group", values = c(16, 17),
+    labels = c("All Tumours", expression(italic("KANSL1")*" MTs"))) +
   labs(shape = "Group") +
   geom_segment(aes(x = 1.25, xend = 1.25, y = 20.833333, yend = 37.5)) +
   annotate("text", x = 1.4, y = (37.5+20.833333)/2, label = "n.s.") +
