@@ -15,7 +15,7 @@ It is an investigation into _KANSL1_ mutations in The Cancer Genome Atlas (TCGA)
 ---
 ## Contact Information
 
-This project was written by Caleb. *Email address:* jfn510@york.ac.uk <br> 
+This project was carried out by Caleb. *Email address:* jfn510@york.ac.uk <br> 
 
 ---
 ## Installation Instructions
@@ -37,11 +37,14 @@ BiocManager::install(c("DESeq2", "fgsea", "maftools", "BiocParallel"))
 | File | Description|
 | -----|------------|
 | analysis.R | main analysis code|
-|
+| results/KANSL1_mutvsWT_DEA_results.csv | DEA results for _KANSL1_ mutant versus _KANSL1_ wildtype tumours |
+| results/FGSEA_KANSL1_muts_vs_WT.csv | GSEA results for_KANSL1_ mutant versus _KANSL1_ wildtype tumours |
+| results/KANSL1_mutvsWT_DEA_results_excl_BaSq.csv | DEA results for _KANSL1_ mutant versus _KANSL1_ wildtype tumours, excluding Ba/Sq tumours |
+| results/FGSEA_KANSL1_muts_vs_WT_excl_BaSq.csv | GSEA results for_KANSL1_ mutant versus _KANSL1_ wildtype tumours, excluding Ba/Sq tumours |
 
 
 ---
 ## The author's favourite joke
-> How do you turn a duck into a soul singer?
->
-> Put it in the oven until its Bill Withers.
+> "How do you turn a duck into a soul singer?
+> 
+> Put it in the oven until its bill withers."
